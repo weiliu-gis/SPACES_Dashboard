@@ -15,7 +15,6 @@ library(geotidy)
 library(tidygeocoder)
 library(shiny)
 library(flexdashboard)
-
 ```
 
 # 1 Data

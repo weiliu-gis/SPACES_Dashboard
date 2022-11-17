@@ -9,18 +9,12 @@ output:
 runtime: shiny
 ---
 
-```{r include=FALSE}
-# !!! Reminder to myself: Please make sure everything is ready in the DataVis.R before changing any content in this file.
-```
-
 ```{r setup, include=FALSE}
 library(dplyr)
 library(stringr)
 library(lubridate)
 library(tidyverse)
-library(ggmap)
 library(sf)
-library(sp)
 library(leaflet)
 library(tidyr)
 library(geotidy)
@@ -34,9 +28,9 @@ library(flexdashboard)
 # Load data
 # ------------------------------------
 
-gps_df = read.csv("./SPACES_Data/GPS.csv", header=TRUE) # GPS records
-baseline_df = read.csv("./SPACES_Data/Baseline.csv", header=TRUE) # Baseline Survey dataset
-ema_df = read.csv("./SPACES_Data/EMA.csv", header=TRUE) # EMA dataset
+gps_df = read.csv("./data/one sample/GPS.csv", header=TRUE) # GPS records
+base_df = read.csv("./data/one sample/Baseline.csv", header=TRUE) # Baseline Survey dataset
+ema_df = read.csv("./data/one sample/EMA.csv", header=TRUE) # EMA dataset
 ```
 
 ```{r}
@@ -44,41 +38,47 @@ ema_df = read.csv("./SPACES_Data/EMA.csv", header=TRUE) # EMA dataset
 # Preprocess data
 # --------------------------------------------------------------
 
+# Define the strings of Coordinate Reference System (CRS)
+crs_proj <- "+proj=utm +zone=18 +datum=NAD83" # Projection
+crs_latlng <- '+proj=longlat +datum=WGS84' # Latitudes and longitudes (This is for visualizing in leaflet map.)
+
 # GPS
-# # Parse to POSIX
-gps_df$time = ymd_hms(gps_df$time)
+# Parse to POSIX
+gps_df$time <- ymd_hms(gps_df$time)
 # Sort the data frame by time (ascending)
 gps_df <- gps_df[order(gps_df$time),]
 # Convert data frames to objects with geographic information
-gps_point <- st_as_sf(gps_df, coords = c("longitude", "latitude"), crs = '+proj=longlat +datum=WGS84')
+gps_point <- st_as_sf(gps_df, coords = c("longitude", "latitude"), crs = crs_latlng)
 # Convert GPS points into continued polylines (One line-string for one person)
 gps_polyline <- gps_point %>%
-  summarise(geometry = st_makeline(geometry), uid = first(uid))
+  summarize(geometry = st_makeline(geometry), uid = first(uid))
+# Filter out those records with accuracy values larger than 1000
+gps_df <- filter(gps_df, accuracy < 1000)
 
 # Baseline
 # Retrieve drinking locations and corresponding time periods from the baseline table (Currently, we don't have corresponding time)
-baseline_drinking_loc1 <- baseline_df$pDrinkQ2aLoc1
-baseline_drinking_loc2 <- baseline_df$pDrinkQ2aLoc2
-baseline_drinking_loc3 <- baseline_df$pDrinkQ2aLoc3
-baseline_drinking_loc <- data.frame(address = c(baseline_drinking_loc1, baseline_drinking_loc2, baseline_drinking_loc3))
+base_drink_loc1 <- base_df$pDrinkQ2aLoc1
+base_drink_loc2 <- base_df$pDrinkQ2aLoc2
+base_drink_loc3 <- base_df$pDrinkQ2aLoc3
+base_drink_loc <- data.frame(address = c(base_drink_loc1, base_drink_loc2, base_drink_loc3))
 
 rx_pattern <- "(?<=\\().+(?=\\))"
-for (i in 1:nrow(baseline_drinking_loc)) {
-  if (is.na(baseline_drinking_loc$address[i]) != TRUE & nchar(baseline_drinking_loc$address[i]) > 0) {
-    baseline_drinking_loc$address[i] <- str_extract(baseline_drinking_loc$address[i], rx_pattern)
+for (i in 1:nrow(base_drink_loc)) {
+  if (is.na(base_drink_loc$address[i]) != TRUE & nchar(base_drink_loc$address[i]) > 0) {
+    base_drink_loc$address[i] <- str_extract(base_drink_loc$address[i], rx_pattern)
   }
   else {
-    baseline_drinking_loc$address[i] <- NA
+    base_drink_loc$address[i] <- NA
   }
 }
 # Drop NA from the data frame
-baseline_drinking_loc <- drop_na(baseline_drinking_loc)
+base_drink_loc <- drop_na(base_drink_loc)
 # Obtain coordinates by OSM geocoding
-baseline_drinking_loc <- tidygeocoder::geocode(baseline_drinking_loc,
+base_drink_loc <- tidygeocoder::geocode(base_drink_loc,
                                            address = address,
                                            method = "osm")
 # Convert data frames to objects with geographic information
-baseline_drinking_points <- st_as_sf(baseline_drinking_loc, coords = c("long", "lat"), crs = '+proj=longlat +datum=WGS84')
+base_drink_points <- st_as_sf(base_drink_loc, coords = c("long", "lat"), crs = crs_latlng)
 
 # EMA
 # emotion
@@ -109,13 +109,13 @@ ema_emo <- mutate(ema_emo,
 ema_emo$start_time = ymd_hms(ema_emo$start_time)
 ema_emo$end_time = ymd_hms(ema_emo$end_time)
 # Join GPS records to EMA data set by matching the time stamps to each of the time periods. 
-ema_emo_gps <- gps_df %>%
+ema_emo_point <- gps_df %>%
   left_join(ema_emo, by = "uid") %>% 
   mutate(inRange = (time >= start_time-5*60 & time <= end_time+5*60)) %>%
   filter(inRange) %>%
   select(uid, time, self, emo_unpleasant, emo_pleasant, longitude, latitude)
 # Convert data frames to objects with geographic information
-ema_emo_gps <- st_as_sf(ema_emo_gps, coords = c("longitude", "latitude"), crs = '+proj=longlat +datum=WGS84')
+ema_emo_point <- st_as_sf(ema_emo_point, coords = c("longitude", "latitude"), crs = crs_latlng)
 
 # Urge
 ema_urge <- ema_df[c("uid", "startTime", "drinkingQ1", "drinkingQ7")]
@@ -146,7 +146,7 @@ ema_urge_gps <- gps_df %>%
   select(uid, time, longitude, latitude, urge_alcohol, urge_drug) %>%
   drop_na(urge_alcohol)
 # Convert data frames to objects with geographic information
-ema_urge_gps <- st_as_sf(ema_urge_gps, coords = c("longitude", "latitude"), crs = '+proj=longlat +datum=WGS84')
+ema_urge_gps <- st_as_sf(ema_urge_gps, coords = c("longitude", "latitude"), crs = crs_latlng)
 ```
 
 Column {.sidebar}
@@ -164,6 +164,15 @@ Column
 # Visualization
 # --------------------------------------------------------------
 
+# Create Markers
+# Markers for each of the alcohol outlets
+alcohol_marker <- awesomeIcons(
+  icon = "beer",
+  iconColor = "White",
+  markerColor = "brown",
+  library = "fa"
+)
+
 # Create palettes
 pal_unpleasant <- colorBin(palette = "Blues", 0:10)
 pal_pleasant <- colorBin(palette = "Greens", 0:10)
@@ -174,8 +183,8 @@ pal_drug <- colorBin(palette = "Purples", 0:10)
 map <- leaflet() %>%
   
   # Base groups
-  addProviderTiles(providers$Esri.WorldGrayCanvas, group = "Esri World Gray Canvas") %>%
-  addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery") %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "CartoDB.Positron") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery") %>%
   
   # Overlay groups
   # GPS Points
@@ -197,18 +206,15 @@ map <- leaflet() %>%
     color = "darkblue",
     weight = 3) %>%
   # Drinking locations
-  addCircleMarkers(
-    data = baseline_drinking_points,
+  addAwesomeMarkers(
+    data = base_drink_points,
     group = "Drinking Locations",
-    radius = 4,
-    fillOpacity = 1,
-    stroke = FALSE,
-    color = "red",
-    popup = baseline_drinking_points$address
+    icon = alcohol_marker,
+    popup = base_drink_points$address
   ) %>%
   # Negative Emotion
   addCircleMarkers(
-    data = ema_emo_gps,
+    data = ema_emo_point,
     group = "Negative Emotion",
     radius = 4,
     fillOpacity = 1,
@@ -216,7 +222,7 @@ map <- leaflet() %>%
     color = ~pal_unpleasant(emo_unpleasant),
   ) %>%
   addLegend(
-    data = ema_emo_gps,
+    data = ema_emo_point,
     group = "Negative Emotion",
     "bottomright", 
     pal = pal_unpleasant,
@@ -226,7 +232,7 @@ map <- leaflet() %>%
   ) %>%
   # Positive Emotion
   addCircleMarkers(
-    data = ema_emo_gps,
+    data = ema_emo_point,
     group = "Positive Emotion",
     radius = 4,
     fillOpacity = 1,
@@ -234,7 +240,7 @@ map <- leaflet() %>%
     color = ~pal_pleasant(emo_pleasant),
   ) %>%
   addLegend(
-    data = ema_emo_gps,
+    data = ema_emo_point,
     group = "Positive Emotion",
     "bottomright", 
     pal = pal_pleasant,
@@ -281,10 +287,10 @@ map <- leaflet() %>%
   
   # layer control
   addLayersControl(
-    baseGroups = c("Esri World Gray Canvas", "Esri World Imagery"),
+    baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
     overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Negative Emotion", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"),
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
-  hideGroup(c("Drinking Locations", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"))
+  hideGroup(c("GPS Points", "Drinking Locations", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"))
 map
 ```
