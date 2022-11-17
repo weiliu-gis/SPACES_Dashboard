@@ -9,9 +9,7 @@ library(dplyr)
 library(stringr)
 library(lubridate)
 library(tidyverse)
-library(ggmap)
 library(sf)
-library(sp)
 library(leaflet)
 library(tidyr)
 library(geotidy)
@@ -26,9 +24,9 @@ library(flexdashboard)
 ## 1.1 Load data
 
 ```{r, message = FALSE}
-gps_df = read.csv("./SPACES_Data/GPS.csv", header=TRUE) # GPS records
-base_df = read.csv("./SPACES_Data/Baseline.csv", header=TRUE) # Baseline Survey dataset
-ema_df = read.csv("./SPACES_Data/EMA.csv", header=TRUE) # EMA dataset
+gps_df = read.csv("./data/one sample/GPS.csv", header=TRUE) # GPS records
+base_df = read.csv("./data/one sample/Baseline.csv", header=TRUE) # Baseline Survey dataset
+ema_df = read.csv("./data/one sample/EMA.csv", header=TRUE) # EMA dataset
 ```
 
 ## 1.2 Preprocess data
@@ -288,5 +286,5 @@ map <- leaflet() %>%
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
   hideGroup(c("GPS Points", "Drinking Locations", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"))
-# map
 ```
+

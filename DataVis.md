@@ -4,92 +4,14 @@ Wei Liu
 
 ``` r
 library(dplyr)
-```
-
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
-
-``` r
 library(stringr)
 library(lubridate)
-```
-
-    ## Loading required package: timechange
-
-    ## 
-    ## Attaching package: 'lubridate'
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     date, intersect, setdiff, union
-
-``` r
 library(tidyverse)
-```
-
-    ## ── Attaching packages
-    ## ───────────────────────────────────────
-    ## tidyverse 1.3.2 ──
-
-    ## ✔ ggplot2 3.4.0     ✔ readr   2.1.3
-    ## ✔ tibble  3.1.8     ✔ purrr   0.3.5
-    ## ✔ tidyr   1.2.1     ✔ forcats 0.5.2
-    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-    ## ✖ lubridate::as.difftime() masks base::as.difftime()
-    ## ✖ lubridate::date()        masks base::date()
-    ## ✖ dplyr::filter()          masks stats::filter()
-    ## ✖ lubridate::intersect()   masks base::intersect()
-    ## ✖ dplyr::lag()             masks stats::lag()
-    ## ✖ lubridate::setdiff()     masks base::setdiff()
-    ## ✖ lubridate::union()       masks base::union()
-
-``` r
-library(ggmap)
-```
-
-    ## ℹ Google's Terms of Service: <]8;;https://mapsplatform.google.comhttps://mapsplatform.google.com]8;;>
-    ## ℹ Please cite ggmap if you use it! Use `citation("ggmap")` for details.
-
-``` r
 library(sf)
-```
-
-    ## Linking to GEOS 3.11.0, GDAL 3.5.3, PROJ 9.1.0; sf_use_s2() is TRUE
-
-``` r
-library(sp)
 library(leaflet)
 library(tidyr)
 library(geotidy)
-```
-
-    ## 
-    ## Attaching package: 'geotidy'
-    ## 
-    ## The following objects are masked from 'package:sf':
-    ## 
-    ##     st_coordinates, st_point, st_union
-
-``` r
 library(tidygeocoder)
-```
-
-    ## 
-    ## Attaching package: 'tidygeocoder'
-    ## 
-    ## The following object is masked from 'package:ggmap':
-    ## 
-    ##     geocode
-
-``` r
 library(shiny)
 library(flexdashboard)
 ```
@@ -99,9 +21,9 @@ library(flexdashboard)
 ## 1.1 Load data
 
 ``` r
-gps_df = read.csv("./SPACES_Data/GPS.csv", header=TRUE) # GPS records
-base_df = read.csv("./SPACES_Data/Baseline.csv", header=TRUE) # Baseline Survey dataset
-ema_df = read.csv("./SPACES_Data/EMA.csv", header=TRUE) # EMA dataset
+gps_df = read.csv("./data/one sample/GPS.csv", header=TRUE) # GPS records
+base_df = read.csv("./data/one sample/Baseline.csv", header=TRUE) # Baseline Survey dataset
+ema_df = read.csv("./data/one sample/EMA.csv", header=TRUE) # EMA dataset
 ```
 
 ## 1.2 Preprocess data
@@ -151,13 +73,6 @@ base_drink_loc <- drop_na(base_drink_loc)
 base_drink_loc <- tidygeocoder::geocode(base_drink_loc,
                                            address = address,
                                            method = "osm")
-```
-
-    ## Passing 1 address to the Nominatim single address geocoder
-
-    ## Query completed in: 1 seconds
-
-``` r
 # Convert data frames to objects with geographic information
 base_drink_points <- st_as_sf(base_drink_loc, coords = c("long", "lat"), crs = crs_latlng)
 ```
@@ -368,5 +283,4 @@ map <- leaflet() %>%
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
   hideGroup(c("GPS Points", "Drinking Locations", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"))
-# map
 ```
