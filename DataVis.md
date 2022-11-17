@@ -1,20 +1,5 @@
 Interactive Dashboard
 ================
-Wei Liu
-
-``` r
-library(dplyr)
-library(stringr)
-library(lubridate)
-library(tidyverse)
-library(sf)
-library(leaflet)
-library(tidyr)
-library(geotidy)
-library(tidygeocoder)
-library(shiny)
-library(flexdashboard)
-```
 
 # 1 Data
 
@@ -39,14 +24,16 @@ crs_latlng <- '+proj=longlat +datum=WGS84' # Latitudes and longitudes (This is f
 
 ``` r
 # Parse to POSIX
-gps_df$time = ymd_hms(gps_df$time)
+gps_df$time <- ymd_hms(gps_df$time)
 # Sort the data frame by time (ascending)
 gps_df <- gps_df[order(gps_df$time),]
 # Convert data frames to objects with geographic information
 gps_point <- st_as_sf(gps_df, coords = c("longitude", "latitude"), crs = crs_latlng)
 # Convert GPS points into continued polylines (One line-string for one person)
 gps_polyline <- gps_point %>%
-  summarise(geometry = st_makeline(geometry), uid = first(uid))
+  summarize(geometry = st_makeline(geometry), uid = first(uid))
+# Filter out those records with accuracy values larger than 1000
+gps_df <- filter(gps_df, accuracy < 1000)
 ```
 
 ### 1.2.2 Baseline
@@ -283,4 +270,11 @@ map <- leaflet() %>%
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
   hideGroup(c("GPS Points", "Drinking Locations", "Positive Emotion", "Urge to Drink", "Urge to Use Drug"))
+```
+
+The map will not show here. Download the .Rmd file and run the following
+code block.
+
+``` r
+map
 ```
