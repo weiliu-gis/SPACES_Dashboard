@@ -59,7 +59,7 @@ function(input, output, session){
   gps_point <- reactive({
     st_as_sf(gps_df(), coords = c("longitude", "latitude"), crs = crs_latlng)
   })
-  # Convert GPS points into continued polylines (One line-string for one person)
+  # Convert GPS points into a continued polyline (One line-string for one person)
   gps_polyline <- reactive({
     summarize(gps_point(), geometry = st_makeline(geometry), uid = first(uid))
   })
@@ -83,9 +83,9 @@ function(input, output, session){
         base_drink_loc$address[i] <- NA
       }
     }
-    # Drop NA from the data frame
+    # Drop NAs from the data frame
     base_drink_loc <- drop_na(base_drink_loc)
-    # Obtain coordinates by OSM geocoding (It is free)
+    # Obtain coordinates by OSM geocoding (We are using this because it is free, but, yes, it could be inaccurate.)
     base_drink_loc <- tidygeocoder::geocode(base_drink_loc,
                                             address = address,
                                             method = "osm")
@@ -97,7 +97,7 @@ function(input, output, session){
   # Map View
   # ----------------------------------------------
   
-  # Map 1: emotion
+  # Map 1: emotion & urge
   output$map1 <- renderLeaflet({
     
     leaflet() %>%
