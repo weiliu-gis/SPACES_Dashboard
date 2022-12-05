@@ -19,3 +19,11 @@ crs_latlng <- '+proj=longlat +datum=WGS84' # Latitudes and longitudes for visual
 rx_pattern <- "(?<=\\().+(?=\\))"
 
 source("load_alcohol_dataset.R")
+
+# Create markers for mapping each of the alcohol outlets
+alcohol_marker <- awesomeIcons(
+  icon = "beer",
+  iconColor = "White",
+  markerColor = "brown",
+  library = "fa"
+)

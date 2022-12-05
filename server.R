@@ -64,6 +64,36 @@ function(input, output, session){
     summarize(gps_point(), geometry = st_makeline(geometry), uid = first(uid))
   })
   
+  # Baseline
+  #
+  # Reported drinking locations
+  drink_location <- reactive({
+    req(input$base_csv)
+    df <- read.csv(input$base_csv$datapath)
+    # Retrieve and format all drinking locations
+    base_drink_loc1 <- df$pDrinkQ2aLoc1
+    base_drink_loc2 <- df$pDrinkQ2aLoc2
+    base_drink_loc3 <- df$pDrinkQ2aLoc3
+    base_drink_loc <- data.frame(address = c(base_drink_loc1, base_drink_loc2, base_drink_loc3))
+    for (i in 1:nrow(base_drink_loc)) {
+      if (is.na(base_drink_loc$address[i]) != TRUE & nchar(base_drink_loc$address[i]) > 0) {
+        base_drink_loc$address[i] <- str_extract(base_drink_loc$address[i], rx_pattern)
+      }
+      else {
+        base_drink_loc$address[i] <- NA
+      }
+    }
+    # Drop NA from the data frame
+    base_drink_loc <- drop_na(base_drink_loc)
+    # Obtain coordinates by OSM geocoding (It is free)
+    base_drink_loc <- tidygeocoder::geocode(base_drink_loc,
+                                            address = address,
+                                            method = "osm")
+    # Convert the data frame to an sf object
+    base_drink_loc <- st_as_sf(base_drink_loc, coords = c("long", "lat"), crs = crs_latlng)
+    return(base_drink_loc)
+  })
+  
   # Map View
   # ----------------------------------------------
   
@@ -95,11 +125,18 @@ function(input, output, session){
         opacity = 0.5,
         color = "darkblue",
         weight = 3) %>%
+      # Drinking locations
+      addAwesomeMarkers(
+        data = drink_location(),
+        group = "Drinking Locations",
+        icon = alcohol_marker,
+        popup = drink_location()$address
+      ) %>%
       
       # Layer control
       addLayersControl(
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
-        overlayGroups = c("GPS Points", "GPS Polylines"),
+        overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations"),
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
       hideGroup(c("GPS Points"))
