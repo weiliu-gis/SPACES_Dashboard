@@ -24,7 +24,7 @@ ui <- navbarPage(
             inputId = "ema_csv",
             label = "Ecological Momentary Assessment",
             multiple = FALSE,
-            # accept = ".csv"
+            accept = ".csv"
           ),
           radioButtons(
             inputId = "display",
@@ -54,7 +54,7 @@ ui <- navbarPage(
                leafletOutput("map1")
       ),
       tabPanel("Environment",
-               leafletOutput("map2")
+               leafletOutput("map2", height=800)
       )
     )
   )

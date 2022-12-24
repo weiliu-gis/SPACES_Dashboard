@@ -64,16 +64,16 @@ function(input, output, session){
     summarize(gps_point(), geometry = st_makeline(geometry), uid = first(uid))
   })
   
-  # Baseline
+  # Baseline Survey
   #
   # Reported drinking locations
   drink_location <- reactive({
     req(input$base_csv)
     df <- read.csv(input$base_csv$datapath)
     # Retrieve and format all drinking locations
-    base_drink_loc1 <- df$pDrinkQ2aLoc1
-    base_drink_loc2 <- df$pDrinkQ2aLoc2
-    base_drink_loc3 <- df$pDrinkQ2aLoc3
+    base_drink_loc1 <- df$pDrinkQ1aLoc1
+    base_drink_loc2 <- df$pDrinkQ1aLoc2
+    base_drink_loc3 <- df$pDrinkQ1aLoc3
     base_drink_loc <- data.frame(address = c(base_drink_loc1, base_drink_loc2, base_drink_loc3))
     for (i in 1:nrow(base_drink_loc)) {
       if (is.na(base_drink_loc$address[i]) != TRUE & nchar(base_drink_loc$address[i]) > 0) {
@@ -85,13 +85,56 @@ function(input, output, session){
     }
     # Drop NAs from the data frame
     base_drink_loc <- drop_na(base_drink_loc)
-    # Obtain coordinates by OSM geocoding (We are using this because it is free, but, yes, it could be inaccurate.)
+    # Obtain coordinates by ArcGIS Single Address geocoding (We are using this because it is free, but, yes, it could be inaccurate.)
     base_drink_loc <- tidygeocoder::geocode(base_drink_loc,
                                             address = address,
-                                            method = "osm")
+                                            method = "arcgis")
     # Convert the data frame to an sf object
     base_drink_loc <- st_as_sf(base_drink_loc, coords = c("long", "lat"), crs = crs_latlng)
     return(base_drink_loc)
+  })
+  
+  # EMA survey
+  #
+  # Emotion
+  ema_emotion <- reactive({
+    req(input$ema_csv)
+    df <- read.csv(input$ema_csv$datapath)
+    # Clean the EMA data
+    for (i in 1:nrow(df)) {
+      # Format the start time of the positive/negative emotion
+      df$start_time[i] <- as.character(ymd_hms(paste0(substr(df$startTime[i], 1, 11), df$expQ7[i], ":00")))
+      # Format the end time of the positive/negative emotion
+      if (df$expQ8[i] == "No") { # The person is not in the emotion at the moment, use the reported end time as the end time.
+        df$end_time[i] <- as.character(ymd_hms(paste0(substr(df$startTime[i], 1, 11), df$expQ8a[i], ":00")))
+      }
+      else { # The person is still in the emotion at the moment, use the start time of the survey as the end time
+        df$end_time[i] <- df$startTime[i]
+      }
+      # Whether the assessment is self-intitiated? 1 as "Yes"; 0 as "No (random prompt)"
+      if (df$expQ1[i] == "a") {
+        df$self[i] <- 1
+      }
+      else {
+        df$self[i] <- 0
+      }
+    }
+    df <- mutate(df,
+                 emo_unpleasant = expQ2,
+                 emo_pleasant = expQ3) %>%
+      select(c("uid", "self", "start_time", "end_time", "emo_unpleasant", "emo_pleasant"))
+    # Parse time columns to POSIX
+    df$start_time = ymd_hms(df$start_time)
+    df$end_time = ymd_hms(df$end_time)
+    # Join GPS records to EMA data set by matching the time stamps to each of the time periods.
+    df_point <- gps_df() %>%
+      left_join(df, by = "uid") %>%
+      mutate(inRange = (time >= start_time-5*60 & time <= end_time+5*60)) %>% # Allow a 5-min deviation
+      filter(inRange) %>%
+      select(uid, time, self, emo_unpleasant, emo_pleasant, longitude, latitude)
+    # Convert the data frame to an sf object
+    df_point <- st_as_sf(df_point, coords = c("longitude", "latitude"), crs = crs_latlng)
+    return(df_point)
   })
   
   # Map View
@@ -125,21 +168,52 @@ function(input, output, session){
         opacity = 0.5,
         color = "darkblue",
         weight = 3) %>%
-      # Drinking locations
+      ## Drinking locations
       addAwesomeMarkers(
         data = drink_location(),
         group = "Drinking Locations",
         icon = alcohol_marker,
         popup = drink_location()$address
       ) %>%
+      ## Negative Emotion
+      addCircleMarkers(
+        data = ema_emotion(),
+        group = "Negative Emotion",
+        radius = ~rescale(emo_unpleasant, c(0,15)),
+        fillOpacity = 0.6,
+        stroke = FALSE,
+        color = "blue",
+        popup = paste0("Being unpleasant: ", ema_emotion()$emo_unpleasant)
+      ) %>%
+      addLegendSize(
+        group = "Negative Emotion",
+        values = c(0,1,2,3,4,5,6,7,8,9,10),
+        color = 'blue',
+        fillColor = 'blue',
+        opacity = .5,
+        title = 'Being Unpleasant',
+        shape = 'circle',
+        orientation = 'vertical',
+        position = 'bottomright',
+        breaks = 10
+      ) %>%
+      ## Positive Emotion
+      addCircleMarkers(
+        data = ema_emotion(),
+        group = "Positive Emotion",
+        radius = ~rescale(emo_pleasant, c(5,13)),
+        fillOpacity = 0.6,
+        stroke = FALSE,
+        color = "purple",
+      ) %>%
       
       # Layer control
       addLayersControl(
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
-        overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations"),
+        overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Negative Emotion", "Positive Emotion"),
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
-      hideGroup(c("GPS Points"))
+      hideGroup(c("GPS Points", "Positive Emotion"))
   })
   
   # Map 2: environment
@@ -173,8 +247,12 @@ function(input, output, session){
         radius = 10
       ) %>%
       
+      # Set map view to initial extent
+      addResetMapButton() %>%
+    
       # Layer control
       addLayersControl(
+        position = c("topleft"),
         overlayGroups = c("Alcohol Outlets", "Heatmap"),
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
