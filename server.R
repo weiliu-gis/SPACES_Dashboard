@@ -141,6 +141,7 @@ function(input, output, session){
   # ----------------------------------------------
   
   # Map 1: emotion & urge
+  
   output$map1 <- renderLeaflet({
     
     leaflet() %>%
@@ -217,6 +218,12 @@ function(input, output, session){
   })
   
   # Map 2: environment
+  
+  # Find points within polygon
+  alcohol_loc_by_county <- st_intersection(alcohol_loc, nys_counties_shp)
+  # Project the data for using them with the leaflet package
+  alcohol_loc_by_county <- st_transform(alcohol_loc_by_county, crs = crs_latlng)
+  
   output$map2 <- renderLeaflet({
     
     leaflet() %>%
@@ -227,20 +234,20 @@ function(input, output, session){
       # Overlay groups
       ## Geocoded NYS alcohol outlets
       addCircleMarkers(
-        data = alcohol_outlets_loc_within,
+        data = alcohol_loc_by_county,
         group = "Alcohol Outlets",
         radius = 3,
-        fillColor = "alcohol_outlets_loc_within",
+        fillColor = "alcohol_loc_by_county",
         fillOpacity = 1,
         stroke = FALSE,
-        popup = paste0("Name: ", alcohol_outlets_loc_within$Premise.Name,
-                       "<br>Type: ", alcohol_outlets_loc_within$Method.of.Operation,
-                       "<br>Address: ", alcohol_outlets_loc_within$complete_address),
+        popup = paste0("Name: ", alcohol_loc_by_county$Premise.Name,
+                       "<br>Type: ", alcohol_loc_by_county$Method.of.Operation,
+                       "<br>Address: ", alcohol_loc_by_county$complete_address),
         popupOptions = popupOptions(closeButton=FALSE, closeOnClick=TRUE)
         )%>%
       ## Heatmap
       addHeatmap(
-        data = alcohol_outlets_loc_within,
+        data = alcohol_loc_by_county,
         group = "Heatmap",
         blur = 10,
         max = 0.05,

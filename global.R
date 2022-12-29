@@ -21,7 +21,8 @@ crs_latlng <- '+proj=longlat +datum=WGS84' # Latitudes and longitudes for visual
 # Define regex pattern
 rx_pattern <- "(?<=\\().+(?=\\))"
 
-source("load_alcohol_dataset.R")
+# Load all embedded datasets
+source("Load_datasets.R")
 
 # Create markers reported drinking locations
 alcohol_marker <- awesomeIcons(
