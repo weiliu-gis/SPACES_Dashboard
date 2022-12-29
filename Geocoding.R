@@ -11,7 +11,7 @@ for (i in 1:nrow(alcohol_outlets_df)) {
   alcohol_outlets_df$complete_address[i] <- paste0(alcohol_outlets_df$Premise.Address[i], ", ", alcohol_outlets_df$Premise.Address.2[i], ", ",alcohol_outlets_df$Premise.City[i], ", New York")
 }
 
-# Geocoding through combined methods: Google Geocoding API, ArcGIS Single Address Geocoding API, and Nominatim (This step took 2 hrs.)
+# Geocoding through combined methods: Google Geocoding API, ArcGIS Single Address Geocoding API, and Nominatim API (This step took 2 hrs.)
 alcohol_outlets_loc_combining <- alcohol_outlets_df %>%
   geocode_combine(
     queries = list(list(method = "google"),
