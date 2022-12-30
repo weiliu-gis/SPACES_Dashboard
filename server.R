@@ -220,7 +220,7 @@ function(input, output, session){
   # Map 2: environment
   
   # Find points within polygon
-  alcohol_loc_by_county <- st_intersection(alcohol_loc, nys_counties_shp)
+  alcohol_loc_by_county <- st_intersection(alcohol_loc, nys_shp)
   # Project the data for using them with the leaflet package
   alcohol_loc_by_county <- st_transform(alcohol_loc_by_county, crs = crs_latlng)
   
