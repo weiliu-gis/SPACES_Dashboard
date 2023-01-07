@@ -121,8 +121,7 @@ function(input, output, session){
     }
     df <- mutate(df,
                  emo_unpleasant = expQ2,
-                 emo_pleasant = expQ3) %>%
-      select(c("uid", "self", "start_time", "end_time", "emo_unpleasant", "emo_pleasant"))
+                 emo_pleasant = expQ3)
     # Parse time columns to POSIX
     df$start_time = ymd_hms(df$start_time)
     df$end_time = ymd_hms(df$end_time)
@@ -131,7 +130,7 @@ function(input, output, session){
       left_join(df, by = "uid") %>%
       mutate(inRange = (time >= start_time-5*60 & time <= end_time+5*60)) %>% # Allow a 5-min deviation
       filter(inRange) %>%
-      select(uid, time, self, emo_unpleasant, emo_pleasant, longitude, latitude)
+      dplyr::select(c("uid", "time", "self", "emo_unpleasant", "emo_pleasant", "longitude", "latitude"))
     # Convert the data frame to an sf object
     df_point <- st_as_sf(df_point, coords = c("longitude", "latitude"), crs = crs_latlng)
     return(df_point)
