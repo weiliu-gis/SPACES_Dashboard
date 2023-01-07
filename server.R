@@ -219,11 +219,6 @@ function(input, output, session){
   
   # Map 2: environment
   
-  # Find points within polygon
-  alcohol_loc_by_county <- st_intersection(alcohol_loc, nys_shp)
-  # Project the data for using them with the leaflet package
-  alcohol_loc_by_county <- st_transform(alcohol_loc_by_county, crs = crs_latlng)
-  
   output$map2 <- renderLeaflet({
     
     leaflet() %>%
@@ -244,23 +239,26 @@ function(input, output, session){
                        "<br>Type: ", alcohol_loc_by_county$Method.of.Operation,
                        "<br>Address: ", alcohol_loc_by_county$complete_address),
         popupOptions = popupOptions(closeButton=FALSE, closeOnClick=TRUE)
-        )%>%
-      ## Heatmap
-      addHeatmap(
-        data = alcohol_loc_by_county,
-        group = "Heatmap",
-        blur = 10,
-        max = 0.05,
-        radius = 10
+      ) %>%
+      ## KDE
+      addRasterImage(alcohol_dens_ras,
+                     group = "Alcohol Kernel Density",
+                     colors = pal,
+                     opacity = 0.6
+      ) %>%
+      addLegend(group = "Alcohol Kernel Density",
+                pal = pal,
+                values = values(alcohol_dens_ras),
+                title = "Alcohol Kernel Density (/sq.km)"
       ) %>%
       
       # Set map view to initial extent
       addResetMapButton() %>%
-    
+      
       # Layer control
       addLayersControl(
         position = c("topleft"),
-        overlayGroups = c("Alcohol Outlets", "Heatmap"),
+        overlayGroups = c("Alcohol Outlets", "Alcohol Kernel Density"),
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
       hideGroup(c("Alcohol Outlets"))

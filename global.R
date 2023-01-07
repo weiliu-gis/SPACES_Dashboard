@@ -4,6 +4,7 @@ library(stringr)
 library(lubridate)
 library(tidyverse)
 library(sf)
+library(raster)
 library(tidyr)
 library(geotidy)
 library(tidygeocoder)
@@ -16,7 +17,7 @@ options(shiny.maxRequestSize=30*1024^2)
 
 # Define two projection strings
 crs_proj <- "+proj=utm +zone=18 +datum=NAD83" # Projection for intersecting process
-crs_latlng <- '+proj=longlat +datum=WGS84' # Latitudes and longitudes for visualizing in leaflet map
+crs_latlng <- '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs' # Latitudes and longitudes for visualizing in leaflet map
 
 # Define regex pattern
 rx_pattern <- "(?<=\\().+(?=\\))"
@@ -51,3 +52,8 @@ pos_marker <- makeSymbolsSize(
   opacity = .5,
   baseSize = 10
 )
+
+# Palette for the alcohol KDE layer
+pal <- colorNumeric(c("#FFF7E0", "#FF5733", "#581845"),
+                    values(alcohol_dens_ras), 
+                    na.color = "transparent")
