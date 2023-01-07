@@ -206,6 +206,18 @@ function(input, output, session){
         stroke = FALSE,
         color = "purple",
       ) %>%
+      addLegendSize(
+        group = "Positive Emotion",
+        values = c(0,1,2,3,4,5,6,7,8,9,10),
+        color = 'purple',
+        fillColor = 'purple',
+        opacity = .5,
+        title = 'Being Pleasant',
+        shape = 'circle',
+        orientation = 'vertical',
+        position = 'bottomright',
+        breaks = 10
+      ) %>%
       
       # Layer control
       addLayersControl(

@@ -53,7 +53,7 @@ pos_marker <- makeSymbolsSize(
   baseSize = 10
 )
 
-# Palette for the alcohol KDE layer
+# Palette for the alcohol KDE output layer
 pal <- colorNumeric(c("#FFF7E0", "#FF5733", "#581845"),
                     values(alcohol_dens_ras), 
                     na.color = "transparent")
