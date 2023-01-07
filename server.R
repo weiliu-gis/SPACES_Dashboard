@@ -131,7 +131,7 @@ function(input, output, session){
       left_join(df, by = "uid") %>%
       mutate(inRange = (time >= start_time-5*60 & time <= end_time+5*60)) %>% # Allow a 5-min deviation
       filter(inRange) %>%
-      select(uid, time, self, emo_unpleasant, emo_pleasant, longitude, latitude)
+      select(c("uid", "time", "self", "emo_unpleasant", "emo_pleasant", "longitude", "latitude"))
     # Convert the data frame to an sf object
     df_point <- st_as_sf(df_point, coords = c("longitude", "latitude"), crs = crs_latlng)
     return(df_point)
