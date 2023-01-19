@@ -47,15 +47,15 @@ ui <- navbarPage(
       )
     )
   ),
-  tabPanel(
+  navbarMenu(
     "Map View",
-    tabsetPanel(
-      tabPanel("Emotion",
-               leafletOutput("map1", height=800)
-      ),
-      tabPanel("Environment",
-               leafletOutput("map2", height=800)
-      )
+    tabPanel(
+      "Emotion",
+      leafletOutput("map1", height=800)
+    ),
+    tabPanel(
+      "Environment",
+      leafletOutput("map2", height=800)
     )
   )
 )
