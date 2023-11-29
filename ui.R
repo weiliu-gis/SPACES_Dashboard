@@ -1,15 +1,19 @@
 ui <- navbarPage(
   theme = shinythemes::shinytheme("flatly"),
   
-  "EmoGeoScope: emotion events and behavior outcomes under a geospatial lens",
+  "EmoGeoScope: Understanding Emotions and Behaviors Under A Geospatial Lens",
   
   tabPanel("Data Explorer", icon = shiny::icon("table"),
            fluidPage(
              sidebarLayout(
                sidebarPanel(
                  h4("Uploading Data"),
-                 p("In the data explorer, uploaded data sets can be previewed."),
+                 p("Select and preview the files."),
                  tags$hr(),
+                 textInput(
+                   inputId = "uid", 
+                   label = "Participant's UID", 
+                   placeholder = "This participant's uid"),
                  fileInput(
                    inputId = "gps_csv",
                    label = "GPS",
@@ -40,7 +44,7 @@ ui <- navbarPage(
                    label = "Reported Addresses",
                    multiple = FALSE,
                    accept = ".csv"
-                 ),
+                 )
                ),
                mainPanel(tabsetPanel(
                  tabPanel("GPS",
@@ -56,7 +60,7 @@ ui <- navbarPage(
            )),
   
   navbarMenu("Visualization", icon = shiny::icon("map-location-dot"),
-             tabPanel("map",
+             tabPanel("Map",
                       fluidPage(fluidRow(
                         column(
                           2,
@@ -81,10 +85,10 @@ ui <- navbarPage(
                         ),
                         column(10,
                                leafletOutput("map", height = 700) %>% withSpinner(type = 7))
-                        ))),
+                      ))),
              tabPanel("Timeline",
                       plotlyOutput("plotly", height = 600) %>% withSpinner(type = 7),
-                )
+             )
   ),
   
   tabPanel("ReadMe", icon = shiny::icon("readme"),
@@ -96,4 +100,3 @@ ui <- navbarPage(
            )
   )
 )
-
