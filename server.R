@@ -199,7 +199,8 @@ function(input, output, session) {
         group = "GPS Polylines",
         opacity = 0.5,
         color = "black",
-        weight = 3) %>%
+        weight = 3
+      ) %>%
       ## Urge to Drink
       addPolygons(
         data = urge_cluster()$urge_buffer_sf,
@@ -208,27 +209,35 @@ function(input, output, session) {
         weight = 1,
         opacity = 0.4,
         fillOpacity = 0.05,
-        fillColor = ~urge_cat_pal(cat_knn)) %>%
-      addCircleMarkers(
-        data = urge_cluster()$urge_spot_sf,
-        group = "Drinking Urge",
-        color = ~urge_cat_pal(cat_knn),
-        radius = 3,
-        stroke = FALSE,
-        fillOpacity = 1,
-        label = paste0("Gi*: ", urge_cluster()$urge_spot_sf$gi_star_knn,
-                       "<br>", "Urge: ", urge_cluster()$urge_spot_sf$urge_alcohol)) %>%
-      addLegendFactor(
-        data = urge_cluster()$urge_spot_sf,
-        group = "Drinking Urge",
-        shape = 'circle',
-        pal = urge_cat_pal,
-        values = ~cat_knn,
-        title = "Cluster Type",
-        fillOpacity = 0.5,
-        opacity = 0,
-        position = 'bottomright'
+        fillColor = ~urge_cat_pal(cat_knn)
       ) %>%
+      addMarkers(
+        data = urge_cluster()$urge_spot_sf,
+        group = "Drinking Urge",
+        icon = ~urge_icons[cat_knn],
+        label = paste0("Gi*: ", urge_cluster()$urge_spot_sf$gi_star_knn, "  Urge: ", urge_cluster()$urge_spot_sf$urge_alcohol)
+      ) %>%
+      # addCircleMarkers(
+      #   data = urge_cluster()$urge_spot_sf,
+      #   group = "Drinking Urge",
+      #   color = ~urge_cat_pal(cat_knn),
+      #   radius = 3,
+      #   stroke = FALSE,
+      #   fillOpacity = 1,
+      #   label = paste0("Gi*: ", urge_cluster()$urge_spot_sf$gi_star_knn,
+      #                  "<br>", "Urge: ", urge_cluster()$urge_spot_sf$urge_alcohol)
+      # ) %>%
+      # addLegendFactor(
+      #   data = urge_cluster()$urge_spot_sf,
+      #   group = "Drinking Urge",
+      #   shape = 'circle',
+      #   pal = urge_cat_pal,
+      #   values = ~cat_knn,
+      #   title = "Cluster Type",
+      #   fillOpacity = 0.5,
+      #   opacity = 0,
+      #   position = 'bottomright'
+      # ) %>%
       ## Drinking locations
       addAwesomeMarkers(
         data = drinking_filtered(),
@@ -301,7 +310,7 @@ function(input, output, session) {
       hideGroup(c("GPS Polylines", "Negative Emotion", "Positive Emotion", "Drinking Urge", "Reported Addresses", "Drinking Cues", "Drinking Urge"))
   })
   
-  # This observer is responsible for showing and hiding the emotion legend
+  # This observer is responsible for showing and hiding the emotion and urge legend
   observe({
     proxy <- leafletProxy("map") %>% clearControls()
     if (any(input$map_groups %in% "Negative Emotion")) {
@@ -315,6 +324,13 @@ function(input, output, session) {
       proxy <- proxy %>%
         addControl(
           html = pos_html_legend, 
+          position = "bottomright"
+        )
+    }
+    if (any(input$map_groups %in% "Drinking Urge")) {
+      proxy <- proxy %>%
+        addControl(
+          html = urge_html_legend, 
           position = "bottomright"
         )
     }

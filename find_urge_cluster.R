@@ -71,9 +71,9 @@ cluster_urge <- function(urge){
   
   # Identify hot/cold spot(s)
   urge_spot_proj <- urge_proj %>%
-    mutate(cat_knn = case_when((gi_star_knn >= 2) ~ "Hot spot",
-                               (gi_star_knn <= -2) ~ "Cold spot",
-                               .default = "Not interested"))
+    mutate(cat_knn = case_when((gi_star_knn >= 2) ~ "hot_spot",
+                               (gi_star_knn <= -2) ~ "cold_spot",
+                               .default = "not_interested"))
   
   # For showing on the map
   urge_spot_sf_proj <- st_as_sf(urge_spot_proj, coords = c("X","Y"), crs = crs_proj)

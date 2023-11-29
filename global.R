@@ -119,14 +119,14 @@ neg_icons <- iconList(
     iconWidth = 20, iconHeight = 20)
 )
 
-# The html for the legend of the negative emotions
+# The html for the legend of negative emotions
 neg_html_legend <- "<b>Negative Emotion</b><br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_0.png' style='width:20px;height:20px;'>&nbsp0<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_1.png' style='width:20px;height:20px;'>&nbsp1-2<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_2.png' style='width:20px;height:20px;'>&nbsp3-4<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_3.png' style='width:20px;height:20px;'>&nbsp5-6<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_4.png' style='width:20px;height:20px;'>&nbsp7-8<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_5.png' style='width:20px;height:20px;'>&nbsp9-10"
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_0.png' style='width:20px;height:20px;'>&nbsp;0<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_1.png' style='width:20px;height:20px;'>&nbsp;1-2<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_2.png' style='width:20px;height:20px;'>&nbsp;3-4<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_3.png' style='width:20px;height:20px;'>&nbsp;5-6<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_4.png' style='width:20px;height:20px;'>&nbsp;7-8<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_neg_5.png' style='width:20px;height:20px;'>&nbsp;9-10"
 
 # Make a list of icons for positive emotions (offset iconAnchorX = -5, iconAnchorY = 0)
 pos_icons <- iconList(
@@ -156,11 +156,32 @@ pos_icons <- iconList(
     iconAnchorX = -5, iconAnchorY = 0)
 )
 
-# The html for the legend of the positive emotions
+# The html for the legend of positive emotions
 pos_html_legend <- "<b>Positive Emotion</b><br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_0.png' style='width:20px;height:20px;'>&nbsp0<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_1.png' style='width:20px;height:20px;'>&nbsp1-2<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_2.png' style='width:20px;height:20px;'>&nbsp3-4<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_3.png' style='width:20px;height:20px;'>&nbsp5-6<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_4.png' style='width:20px;height:20px;'>&nbsp7-8<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_5.png' style='width:20px;height:20px;'>&nbsp9-10"
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_0.png' style='width:20px;height:20px;'>&nbsp;0<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_1.png' style='width:20px;height:20px;'>&nbsp;1-2<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_2.png' style='width:20px;height:20px;'>&nbsp;3-4<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_3.png' style='width:20px;height:20px;'>&nbsp;5-6<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_4.png' style='width:20px;height:20px;'>&nbsp;7-8<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_5.png' style='width:20px;height:20px;'>&nbsp;9-10"
+
+
+
+# Make a list of icons for urge clusters
+urge_icons <- iconList(
+  cold_spot = makeIcon(
+    iconUrl = "https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_cold.png",
+    iconWidth = 25, iconHeight = 25),
+  hot_spot = makeIcon(
+    iconUrl = "https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_hot.png",
+    iconWidth = 25, iconHeight = 25),
+  not_interested = makeIcon(
+    iconUrl = "https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_not.png",
+    iconWidth = 25, iconHeight = 25)
+)
+
+# The html for the legend of urge clusters
+urge_html_legend <- "<b>Cluster Type</b><br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_hot.png' style='width:25px;height:25px;'>&nbsp;Hot&nbsp;spot<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_not.png' style='width:25px;height:25px;'>&nbsp;interested<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_cold.png' style='width:25px;height:25px;'>&nbsp;Cold&nbsp;spot"
