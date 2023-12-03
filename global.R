@@ -183,5 +183,5 @@ urge_icons <- iconList(
 # The html for the legend of urge clusters
 urge_html_legend <- "<b>Cluster Type</b><br/>
 <img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_hot.png' style='width:25px;height:25px;'>&nbsp;Hot&nbsp;spot<br/>
-<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_not.png' style='width:20px;height:20px;'>&nbsp;interested<br/>
+<img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_not.png' style='width:20px;height:20px;'>&nbsp;Not&nbsp;interested<br/>
 <img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/urge_cold.png' style='width:25px;height:25px;'>&nbsp;Cold&nbsp;spot"
