@@ -2,7 +2,7 @@ function(input, output, session) {
   
   # 1 Data Explorer
   # ============================================
-  # This part is for reading the selected data files and choosing which participant to look at.
+  # This part is for reading the selected data files and choosing which participant to analyze by inputting their UID.
   
   # 1.1 Display GPS dataframe
   # --------------------------------------------
@@ -91,14 +91,14 @@ function(input, output, session) {
   # Preprocess GPS, Daily Baseline and EMA data
   data_processed <- reactive({
     req(gps_df(), base_df(), ema_df())
-    res_list <- preprocess_data(gps_df(), base_df(), ema_df())
-    return(res_list)
+    result_list <- preprocess_data(gps_df(), base_df(), ema_df())
+    return(result_list)
   })
   
   # Identify drinking urge clusters
   urge_cluster <- reactive({
-    res_list <- cluster_urge(data_processed()$urge)
-    return(res_list)
+    result_list <- cluster_urge(data_processed()$urge)
+    return(result_list)
   })
   
   # 2.4 Self-Reported Addresses
@@ -217,27 +217,6 @@ function(input, output, session) {
         icon = ~urge_icons[cat_knn],
         label = paste0("Gi*: ", urge_cluster()$urge_spot_sf$gi_star_knn, "  Urge: ", urge_cluster()$urge_spot_sf$urge_alcohol)
       ) %>%
-      # addCircleMarkers(
-      #   data = urge_cluster()$urge_spot_sf,
-      #   group = "Drinking Urge",
-      #   color = ~urge_cat_pal(cat_knn),
-      #   radius = 3,
-      #   stroke = FALSE,
-      #   fillOpacity = 1,
-      #   label = paste0("Gi*: ", urge_cluster()$urge_spot_sf$gi_star_knn,
-      #                  "<br>", "Urge: ", urge_cluster()$urge_spot_sf$urge_alcohol)
-      # ) %>%
-      # addLegendFactor(
-      #   data = urge_cluster()$urge_spot_sf,
-      #   group = "Drinking Urge",
-      #   shape = 'circle',
-      #   pal = urge_cat_pal,
-      #   values = ~cat_knn,
-      #   title = "Cluster Type",
-      #   fillOpacity = 0.5,
-      #   opacity = 0,
-      #   position = 'bottomright'
-      # ) %>%
       ## Drinking locations
       addAwesomeMarkers(
         data = drinking_filtered(),
@@ -305,12 +284,12 @@ function(input, output, session) {
         position = c("topleft"),
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
         overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Drinking Urge", "Drinking Cues", "Negative Emotion", "Positive Emotion", "Reported Addresses"),
-        options = layersControlOptions(collapsed = FALSE)
+        options = layersControlOptions(collapsed = TRUE)
       ) %>%
       hideGroup(c("GPS Polylines", "Negative Emotion", "Positive Emotion", "Drinking Urge", "Reported Addresses", "Drinking Cues", "Drinking Urge"))
   })
   
-  # This observer is responsible for showing and hiding the emotion and urge legend
+  # This observer is responsible for showing and hiding the emotion and urge legends
   observe({
     proxy <- leafletProxy("map") %>% clearControls()
     if (any(input$map_groups %in% "Negative Emotion")) {
@@ -339,7 +318,7 @@ function(input, output, session) {
   # This observer is responsible for showing the alcohol exposure
   observeEvent(input$show, {
     leafletProxy("map") %>%
-      # ## Geocoded NYS alcohol outlets
+      # ## Geocoded NYS alcohol outlets (Currently not in use)
       # addCircleMarkers(
       #   data = alcohol_loc_by_county,
       #   group = "Alcohol Outlets",
@@ -372,7 +351,7 @@ function(input, output, session) {
         position = c("topleft"),
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
         overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Drinking Urge", "Drinking Cues", "Negative Emotion", "Positive Emotion", "Reported Addresses", "Alcohol Kernel Density"),
-        options = layersControlOptions(collapsed = FALSE)
+        options = layersControlOptions(collapsed = TRUE)
       ) %>%
       hideGroup(c("GPS Polylines", "Negative Emotion", "Positive Emotion", "Drinking Urge", "Alcohol Outlets", "Reported Addresses", "Drinking Cues"))
   })
@@ -386,7 +365,7 @@ function(input, output, session) {
         position = c("topleft"),
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
         overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Drinking Urge", "Drinking Cues", "Negative Emotion", "Positive Emotion", "Reported Addresses"),
-        options = layersControlOptions(collapsed = FALSE)
+        options = layersControlOptions(collapsed = TRUE)
       ) %>%
       hideGroup(c("GPS Polylines", "Negative Emotion", "Positive Emotion", "Reported Addresses", "Drinking Cues", "Drinking Urge"))
   })
