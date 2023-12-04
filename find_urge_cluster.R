@@ -80,15 +80,15 @@ cluster_urge <- function(urge){
   
   urge_spot_buffer_sf_proj <- st_buffer(urge_spot_sf_proj, urge_spot_sf_proj$r)
   temp_hot_buffer <- urge_spot_buffer_sf_proj %>%
-    filter(cat_knn == "Hot spot") %>%
+    filter(cat_knn == "hot_spot") %>%
     sf::st_union() %>%
     st_sf() %>%
-    mutate(cat_knn = "Hot spot")
+    mutate(cat_knn = "hot_spot")
   temp_cold_buffer <- urge_spot_buffer_sf_proj %>%
-    filter(cat_knn == "Cold spot") %>%
+    filter(cat_knn == "cold_spot") %>%
     sf::st_union() %>%
     st_sf() %>%
-    mutate(cat_knn = "Cold spot")
+    mutate(cat_knn = "cold_spot")
   urge_buffer_sf_proj <- rbind(temp_hot_buffer, temp_cold_buffer)
   
   urge_spot_sf <- st_transform(urge_spot_sf_proj, crs = crs_latlng)
