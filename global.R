@@ -27,19 +27,12 @@ options(spinner.color = "#abe6dc", spinner.color.background = "#ffffff", spinner
 source("data_preprocess.R", local = TRUE)
 source("find_urge_cluster.R", local = TRUE)
 
-# Define Coordinate Reference Systems(CRS) strings
-crs_proj <- "+proj=utm +zone=18 +datum=NAD83" 
-crs_latlng <- "+proj=longlat +datum=WGS84"
-
-
-
-
 # Load the KDE output raster
 alcohol_dens_ras <- raster("./data/Alcohol_Kernel_Density_raster_300m_150m_EPSG3857.tif")
 
-
-
-
+# Define Coordinate Reference Systems(CRS) strings
+crs_proj <- "+proj=utm +zone=18 +datum=NAD83" 
+crs_latlng <- "+proj=longlat +datum=WGS84"
 
 # Create the dictionary of drinking cues
 cues_dict <- c(
@@ -53,10 +46,6 @@ cues_dict <- c(
   "8" = "other",
   "9" = "nothing"
 )
-
-
-
-
 
 # Create markers for drinking locations
 alcohol_marker <- awesomeIcons(
@@ -86,10 +75,6 @@ loc_type_pal <- colorFactor(palette = c("#5d95fc", "#c57cfc", "#fca7c5", "#fac67
 # Palette for the urge cluster layer
 urge_cat_pal <- colorFactor(palette = c("red", "darkgrey","blue"),
                             level = c("hot_spot", "not_interested", "cold_spot"))
-
-
-
-
 
 # Make a list of icons for negative emotions
 neg_icons <- iconList(
@@ -158,8 +143,6 @@ pos_html_legend <- "<b>Positive Emotion</b><br/>
 <img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_3.png' style='width:20px;height:20px;'>&nbsp;5-6<br/>
 <img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_4.png' style='width:20px;height:20px;'>&nbsp;7-8<br/>
 <img src='https://raw.githubusercontent.com/weiliu-gis/SPACES_Dashboard/main/icons/emo_pos_5.png' style='width:20px;height:20px;'>&nbsp;9-10"
-
-
 
 # Make a list of icons for urge clusters
 urge_icons <- iconList(
