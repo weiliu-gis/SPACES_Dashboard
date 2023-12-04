@@ -1,39 +1,33 @@
-library(stringr)
-library(stringi)
-library(scales)
-library(lubridate)
-library(xts)
-library(dplyr)
-library(tidyverse)
-library(sf)
-library(raster)
-library(tidyr)
-library(geotidy)
-library(tidygeocoder)
-library(knitr)
-library(dygraphs)
-library(plotly)
-library(leaflet)
-library(leaflegend)
-library(leaflet.extras)
-library(shiny)
-library(shinythemes)
-library(shinycssloaders)
+# Load required packages
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
+if(!require(stringi)) install.packages("stringi", repos = "http://cran.us.r-project.org")
+if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(xts)) install.packages("xts", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(sf)) install.packages("sf", repos = "http://cran.us.r-project.org")
+if(!require(raster)) install.packages("raster", repos = "http://cran.us.r-project.org")
+if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
+if(!require(geotidy)) install.packages("geotidy", repos = "http://cran.us.r-project.org")
+if(!require(dygraphs)) install.packages("dygraphs", repos = "http://cran.us.r-project.org")
+if(!require(plotly)) install.packages("plotly", repos = "http://cran.us.r-project.org")
+if(!require(leaflet)) install.packages("leaflet", repos = "http://cran.us.r-project.org")
+if(!require(leaflegend)) install.packages("leaflegend", repos = "http://cran.us.r-project.org")
+if(!require(leaflet.extras)) install.packages("leaflet.extras", repos = "http://cran.us.r-project.org")
+if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
+if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
+if(!require(shinycssloaders)) install.packages("shinycssloaders", repos = "http://cran.us.r-project.org")
 
+# Add Shiny setting
 options(shiny.reactlog=TRUE) 
 options(shiny.maxRequestSize = 80*1024^2) # Max file size to upload to the tool
 options(spinner.color = "#abe6dc", spinner.color.background = "#ffffff", spinner.size = 0.5)
 
-
-
-
-# Functions
+# Load the functions
 source("data_preprocess.R", local = TRUE)
 source("find_urge_cluster.R", local = TRUE)
 
-
-
-# Define two projection strings
+# Define Coordinate Reference Systems(CRS) strings
 crs_proj <- "+proj=utm +zone=18 +datum=NAD83" 
 crs_latlng <- "+proj=longlat +datum=WGS84"
 
@@ -91,7 +85,7 @@ loc_type_pal <- colorFactor(palette = c("#5d95fc", "#c57cfc", "#fca7c5", "#fac67
 
 # Palette for the urge cluster layer
 urge_cat_pal <- colorFactor(palette = c("red", "darkgrey","blue"),
-                            level = c("Hot spot", "Not interested", "Cold spot"))
+                            level = c("hot_spot", "not_interested", "cold_spot"))
 
 
 

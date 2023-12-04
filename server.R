@@ -207,7 +207,7 @@ function(input, output, session) {
         group = "Drinking Urge",
         color = ~urge_cat_pal(cat_knn),
         weight = 1,
-        opacity = 0.4,
+        opacity = 0.3,
         fillOpacity = 0.05,
         fillColor = ~urge_cat_pal(cat_knn)
       ) %>%
