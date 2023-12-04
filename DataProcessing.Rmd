@@ -1,0 +1,1419 @@
+---
+title: "SPACES Data Analysis"
+output: html_document
+author: Wei Liu
+---
+
+Updated on Dec 4
+
+
+
+This file is used to document the data processing and analysis procedures for the SPACES project.
+
+**There are three main parts within this document:**
+
+1.  **Preparation**\
+    This part is used for splitting the newly downloaded/created files, including GPS, Daily Baseline, EMA, and Reported addresses. (These files should all be originally in the format of .csv)
+2.  **Processing GPS, Baseline, EMA, and address files**\
+    This part is for processing the data to be used for creating the visualization. In the code for the R Shiny App (the dashboard), the data processing methods are the same. However, the document contains more details of how the datasets are cleaned, connected, etc. It is recommended to change and test the code in this document before updating the code for the R Shiny App (the dashboard).
+3.  **Creating the alcohol density layer**\
+    This part will retrieve the alcohol outlet locations from downloaded alcohol premise dataset and will calculate the kernel density of alcohol outlets. Whenever a new alcohol density layer is created, it should replace the old layer that is used in the code for the R Shiny App (the dashboard).
+4.  **Test visualization**\
+    This part is only for testing the visualization, but the code in this document is not the same with the code for the dashboard tool.
+
+```{r}
+# This will remove all created variables in the environment. To keep the working environment clean, this step is recommended when you want to re-excute all codes in this R markdown file.
+rm(list=ls())
+```
+
+**install R packages.** Run the following code block to install R packages for this R markdown notebook.\
+**Skip this step** if you have already installed these packages on your computer. (But it's okay to install them from time to time, since the packages are being updated to newer versions.)
+
+```{r}
+install.packages("stringr")
+install.packages("stringi")
+install.packages("scales")
+install.packages("lubridate")
+install.packages("xts")
+install.packages("dplyr")
+install.packages("tidyverse")
+install.packages("sf")
+install.packages("raster")
+install.packages("tidyr")
+install.packages("geotidy")
+install.packages("tidygeocoder")
+install.packages("rgdal")
+install.packages("spatstat")
+install.packages("knitr")
+install.packages("dygraphs")
+install.packages("plotly")
+install.packages("leaflet")
+install.packages("leaflegend")
+install.packages("leaflet.extras")
+```
+
+**Load R packages.**
+
+```{r, message = FALSE, echo = FALSE}
+# Loaded all needed packages for this R markdown file.
+
+library(stringr)
+library(stringi)
+library(scales)
+library(lubridate)
+library(xts)
+library(dplyr)
+library(tidyverse)
+library(sf)
+library(raster)
+library(tidyr)
+library(geotidy)
+library(tidygeocoder)
+library(rgdal)
+library(spatstat)
+library(knitr)
+library(dygraphs)
+library(plotly)
+library(leaflet)
+library(leaflegend)
+library(leaflet.extras)
+
+# Set number of digits for all results to be 15.
+options(digits=15)
+```
+
+```{r, message = FALSE}
+crs_proj <- "+proj=utm +zone=18 +datum=NAD83" 
+crs_latlng <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs" 
+```
+
+# 1 Preparation
+
+**No need to run the code in this section again if you have already split the original survey and address files.**
+
+## 1.1 GPS, EMA, Baseline Files
+
+When the new datasets (GPS, EMA, Baseline) are downloaded from the online server for the first time, run the following code blocks to split the files for each participant.
+
+```{r}
+# Provide your own paths to files respectively.
+
+# Path to GPS csv file
+path_gps_csv <- rstudioapi::selectFile(caption = "Select GPS file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+gps_df <- read.csv(path_gps_csv, header=TRUE)
+```
+
+```{r}
+# Path to Baseline csv file
+path_base_csv <- rstudioapi::selectFile(caption = "Select Baseline file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+base_df <- read.csv(path_base_csv, header=TRUE)
+```
+
+```{r}
+# Path to EMA csv file
+path_ema_csv <- rstudioapi::selectFile(caption = "Select EMA file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+ema_df <- read.csv(path_ema_csv, header=TRUE)
+```
+
+```{r}
+# Get the list of the uids of all participants
+uid_list <- unique(base_df$uid)
+```
+
+```{r}
+# Show the number of participants in total
+length(uid_list)
+```
+
+```{r}
+# Show the uids of all participants
+uid_list
+```
+
+```{r}
+# Select your own path to a folder to save the split files
+path_folder <- rstudioapi::selectDirectory(caption = "Select Directory", label = "Select")
+path_folder <- paste0(path_folder, "/")
+```
+
+```{r}
+# Split the files
+for (i in 1:length(uid_list)) {
+  this_uid <- uid_list[i]
+  # Filter the files by user ID
+  this_gps_df <- filter(gps_df, uid == this_uid)
+  this_base_df <- filter(base_df, uid == this_uid)
+  this_ema_df <- filter(ema_df, uid == this_uid)
+  # Save the files (Files with the same names will be replaced)
+  write.csv(this_gps_df, paste0(path_folder, this_uid, "_gps.csv"), row.names=FALSE)
+  write.csv(this_base_df, paste0(path_folder, this_uid, "_baseline.csv"), row.names=FALSE)
+  write.csv(this_ema_df, paste0(path_folder, this_uid, "_ema.csv"), row.names=FALSE)
+}
+```
+
+## 1.2 Address File
+
+When a new address file that contains multiple participants is provided for the first time, run the following code blocks to split the file for each participant.
+
+```{r}
+# Path to adress csv file
+path_addr_csv <- rstudioapi::selectFile(caption = "Select adress file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+addr_df <- read.csv(path_addr_csv, header=TRUE)
+
+# Get the list of the uids of all participants in this file
+addr_uid_list <- unique(addr_df$uid)
+```
+
+```{r}
+# Show number of participants in this file
+length(addr_uid_list)
+```
+
+```{r}
+# Show uids of all participants in this file
+addr_uid_list
+```
+
+```{r}
+# Select your own path to a folder to save the split files
+path_folder <- rstudioapi::selectDirectory(caption = "Select Directory", label = "Select")
+path_folder <- paste0(path_folder, "/")
+
+# Split the file
+for (i in 1:length(addr_uid_list)) {
+  this_uid <- addr_uid_list[i]
+  # Filter the files by user ID
+  this_addr_df <- filter(addr_df, uid == this_uid)
+  # Save the files (Files with the same names will be replaced)
+  write.csv(this_addr_df, paste0(path_folder, this_uid, "_addr.csv"), row.names=FALSE)
+}
+```
+
+# 2 Processing GPS, Baseline, EMA, and address files
+
+## 2.1 Read Data
+
+After you get the files that have been split, read in the four files (GPS, EMA, Baseline, Address) for **one participant**. (E.g., read in the files for the participant whose uid is jc6CzEF42o.)
+
+```{r}
+# Path to GPS csv file
+path_gps_csv <- rstudioapi::selectFile(caption = "Select GPS file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+gps_df <- read.csv(path_gps_csv, header=TRUE)
+```
+
+```{r}
+# Path to Daily Baseline csv file
+path_base_csv <- rstudioapi::selectFile(caption = "Select Baseline file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+base_df <- read.csv(path_base_csv, header=TRUE)
+```
+
+```{r}
+# Path to EMA csv file
+path_ema_csv <- rstudioapi::selectFile(caption = "Select EMA file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+ema_df <- read.csv(path_ema_csv, header=TRUE)
+```
+
+```{r}
+# Path to address csv file
+path_addr_csv <- rstudioapi::selectFile(caption = "Select address file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+addr_df <- read.csv(path_addr_csv, header=TRUE)
+```
+
+## 2.2 View Data
+
+This section is for briefly previewing the dataframes that were created.
+
+```{r}
+# Give the number of rows to be showed
+num_row <- 5
+```
+
+-   GPS records
+
+```{r echo = FALSE, results = "asis"}
+gps_df[1:num_row, ]
+```
+
+-   Daily baseline surveys
+
+```{r echo = FALSE, results = "asis"}
+base_df[1:num_row, ]
+```
+
+-   EMA surveys
+
+```{r echo = FALSE, results = "asis"}
+ema_df[1:num_row, ]
+```
+
+-   Self-reported addresses
+
+```{r echo = FALSE, results = "asis"}
+addr_df
+```
+
+## 2.3 Process Data
+
+### 2.3.1 GPS Traces
+
+```{r}
+# Filter out those records with accuracy values larger than 1000
+gps_df_processed <-
+  dplyr::filter(gps_df, accuracy < 1000) %>%
+  # Parse to POSIX
+  mutate(time = ymd_hms(time)) %>%
+  # Sort the data frame by time (ascending)
+  arrange(time) %>%
+  dplyr::filter(!duplicated(time))
+
+gps_df_processed
+```
+
+```{r}
+# Reformat the "longitude" column
+# gps_df_processed <- gps_df_processed %>%
+#   mutate(longitude = as.numeric(substr(longitude, 2, 20)))
+# 
+# gps_df_processed
+```
+
+```{r}
+# Create the GPS points (sf object)
+gps_sf <- st_as_sf(gps_df_processed, coords = c("longitude", "latitude"), crs = crs_latlng)
+```
+
+```{r}
+# Connect the points to make GPS trajectories
+gps_line <- summarize(gps_sf, geometry = st_makeline(geometry), uid = first(uid))
+```
+
+```{r}
+# Check whether the sf objects (GPS points and GPS trajectories) have been successfully created
+leaflet() %>%
+  addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri.WorldStreetMap") %>%
+  addCircleMarkers(
+    data = gps_sf,
+    group = "GPS Points",
+    color = 'black',
+    radius = 3,
+    stroke = FALSE,
+    fillOpacity = 1,
+    label = paste0("Date & Time: ", gps_sf$time)) %>%
+  addPolylines(
+    data = gps_line,
+    group = "GPS Polylines",
+    opacity = 0.5,
+    color = 'black',
+    weight = 3)
+```
+
+### 2.3.2 Drinking
+
+#### 2.3.2.1 Drinking Duration
+
+(1) EMA (Are you drinking or about to drink right now?)
+
+    If they answer "Yes", use the reported time of when they started to drink as "`start_time`", and the start time of the current survey as "`end_time`".
+
+```{r}
+ema_df_1 <- ema_df
+
+for (i in 1:nrow(ema_df_1)) {
+      if (ema_df_1$drinkingQ3[i] == "Yes") {
+        ema_df_1$start_time[i] <-
+          as.character(ymd_hms(paste0(
+            substr(ema_df_1$startTime[i], 1, 11), ema_df_1$drinkingQ3a[i], ":00")))
+        ema_df_1$end_time[i] <- ema_df_1$startTime[i]
+      }
+      else {
+        ema_df_1$start_time[i] <- NA
+        ema_df_1$end_time[i] <- NA
+      }
+    }
+    drinking_time_ema <- ema_df_1 %>%
+      dplyr::select(start_time, end_time)
+```
+
+(2) Baseline (Are you drinking or about to drink right now?)
+
+    Same process as the EMA survey above.
+
+```{r}
+base_df_1 <- base_df
+
+for (i in 1:nrow(base_df_1)) {
+      if (base_df_1$outQ3[i] == "Yes") {
+        base_df_1$start_time[i] <-
+          as.character(ymd_hms(paste0(
+            substr(base_df_1$startTime[i], 1, 11), base_df_1$outQ3a[i], ":00")))
+        base_df_1$end_time[i] <- base_df_1$startTime[i]
+      }
+      else {
+        base_df_1$start_time[i] <- NA
+        base_df_1$end_time[i] <- NA
+      }
+    }
+    drinking_time_base <- base_df_1 %>%
+      dplyr::select(start_time, end_time)
+```
+
+(3) Baseline (Did you drink yesterday?)
+
+    If they answer "Yes", whey also report the start and end time of their drinking duration. The reported time is in the format of `hh:mm AM` (or `hh:mm PM`).
+
+    -   For both `start_time` and `end_time`:
+        -   If the reported time is before noon, use the same date as current survey;
+
+        -   If the reported time is after noon, use the date of the day before current survey.
+
+```{r}
+base_df_2 <- base_df
+
+for (i in 1:nrow(base_df_2)) {
+      if (base_df_2$pDrinkQ1[i] == "Yes") {
+        t_start <- hm(base_df_2$pDrinkQ2dStart[i])
+        t_stop <- hm(base_df_2$pDrinkQ2dStop[i])
+        # Start time
+        if (am(t_start)) {
+          base_df_2$start_time[i] <-
+            as.character(ymd_hms(paste0(
+              substr(base_df_2$startTime[i], 1, 11), base_df_2$pDrinkQ2dStart[i], ":00")))
+        } else {
+          base_df_2$start_time[i] <-
+            as.character(ymd_hms(paste0(
+              substr(base_df_2$startTime[i], 1, 11),base_df_2$pDrinkQ2dStart[i], ":00")) - hours(24))
+        }
+        # Stop time
+        if (am(t_stop)) {
+          base_df_2$end_time[i] <-
+            as.character(ymd_hms(paste0(
+              substr(base_df_2$startTime[i], 1, 11), base_df_2$pDrinkQ2dStop[i], ":00")))
+        } else {
+          base_df_2$end_time[i] <-
+            as.character(ymd_hms(paste0(
+              substr(base_df_2$startTime[i], 1, 11),base_df_2$pDrinkQ2dStop[i], ":00")) - hours(24))
+        }
+      } else {
+        base_df_2$start_time[i] <- NA
+        base_df_2$end_time[i] <- NA
+      }
+    }
+    drinking_time_yesterday <- base_df_2 %>%
+      dplyr::select(start_time, end_time)
+```
+
+Combine the drinking duration captured by different survey questions.
+
+```{r}
+drinking_time <- rbind(drinking_time_ema, drinking_time_base, drinking_time_yesterday)
+drinking_time$uid <- gps_df_processed$uid[1]
+drinking_time <- drop_na(drinking_time) %>% arrange(start_time)
+
+drinking_time$start_time <- ymd_hms(drinking_time$start_time)
+drinking_time$end_time <- ymd_hms(drinking_time$end_time)
+```
+
+Connect the drinking duration with GPS data for visualization.
+
+```{r message=FALSE, warnings=FALSE}
+# For map - Only preserve GPS points where drinking outcomes are reported
+drinking_time_point <- gps_df_processed %>%
+  left_join(drinking_time, by = "uid") %>%
+  mutate(inRange = (time >= start_time - 5 * 60 & time <= end_time + 5 * 60)) %>%
+  filter(inRange) %>%
+  dplyr::select(uid, time, longitude, latitude) %>%
+  mutate(fake_value = 10) # This value is for visualization only
+drinking_time_point <- st_as_sf(drinking_time_point, coords = c("longitude", "latitude"), crs = crs_latlng)
+```
+
+```{r}
+# For timeline - Preserve all GPS points, fake_value being set as 10 where drinking outcomes are reported
+drinking_time_plotly <- gps_df_processed %>%
+  left_join(drinking_time_point, by = "time") %>%
+  dplyr::select(time, fake_value) %>%
+  mutate_at(c('fake_value'), ~  replace_na(., 0)) %>%
+  dplyr::filter(!duplicated(time)) %>%
+  mutate(time = as.POSIXct(time))
+```
+
+#### 2.3.2.2 Drinking Urge
+
+(1) Baseline (On a scale of 1-10, how strong is your urge to drink right now?)
+
+```{r}
+urge_base <- base_df[c("uid", "startTime", "outQ1")]
+colnames(urge_base) <- c("uid", "startTime", "urge_alcohol")
+```
+
+(2) EMA (On a scale of 1-10, how strong is your urge to drink right now?)
+
+```{r}
+urge_ema <- ema_df[c("uid", "startTime", "drinkingQ1")]
+colnames(urge_ema) <- c("uid", "startTime", "urge_alcohol")
+```
+
+Combine reported urge from both surveys.
+
+```{r}
+gps_df_processed_1 <- gps_df_processed
+
+urge_combined <- rbind(urge_base, urge_ema)
+urge_combined$startTime = ymd_hms(urge_combined$startTime)
+urge_combined <- urge_combined[order(urge_combined$startTime),]
+```
+
+Connect the drinking urge with GPS data for visualization.
+
+```{r}
+# Assign the scores of urge to drink from EMA to the nearest GPS ponits in time
+gps_df_processed_1$time_diff <- NA
+gps_df_processed_1$urge_alcohol <- NA
+for (i in 1:nrow(urge_combined)) {
+  for (j in 1:nrow(gps_df_processed_1)) {
+    # Calculate the time difference
+    gps_df_processed_1$time_diff[j] <- abs(as.numeric(urge_combined$startTime[i]) - as.numeric(gps_df_processed_1$time[j]))
+    if (j >= 2) {
+      # Find the smallest time defference
+      if (gps_df_processed_1$time_diff[j] > gps_df_processed_1$time_diff[j-1]) {
+        gps_df_processed_1$urge_alcohol[j-1] <- urge_combined$urge_alcohol[i]
+        break
+      }
+    }
+  }
+}
+
+urge <- gps_df_processed_1 %>% 
+  dplyr::select(uid, time, longitude, latitude, urge_alcohol) %>%
+  drop_na(urge_alcohol) %>%
+  distinct(time, .keep_all = TRUE)
+```
+
+```{r}
+# For map view - Only preserve GPS points where drinking urge are reported
+urge_point <- st_as_sf(urge, coords = c("longitude", "latitude"), crs = crs_latlng)
+```
+
+```{r}
+# For line graph - Preserve all GPS points
+urge_plotly <- urge
+```
+
+#### 2.3.2.3 Drinking Cues
+
+Drinking cues are extracted from the EMA surveys.
+
+-   The question asked is as follows:\
+    Is there anything around you right now that reminds you of alcohol or drinking? Select all that apply: alcohol advertisements, drinking mentioned in the media (television, movies, radio), glassware, dartboard, pool table, bar, liquor/wine bottles, other. If other, please describe.
+
+```{r}
+# Create the dictionary of drinking cues
+cues_dict <- c(
+    "1" = "alcohol advertisements",
+    "2" = "drinking mentioned in the media (television, movies, radio)",
+    "3" = "glassware",
+    "4" = "dartboard",
+    "5" = "pool table",
+    "6" = "bar",
+    "7" = "liquor/wine bottles",
+    "8" = "other",
+    "9" = "nothing"
+)
+```
+
+Column `drinkingQ6` stores the code of each cue (as listed in the dictionary above). Column `drinkingQ6a` is the description of "other" cues.
+
+```{r}
+# Create a simplified dataframe with only the columns of this participant's uid, start time of the EMA survey, code of the drinking cue, and description of other drinking cues.
+cue_ema <- ema_df[c("uid", "startTime", "drinkingQ6", "drinkingQ6a")]
+```
+
+```{r}
+cue_list <- list()
+for (i in 1:nrow(cue_ema)) {
+  
+  this_cue_list <- list()
+  # Multiple cues are separated by semicolons
+  this_cue_code_list <- strsplit((cue_ema$drinkingQ6[i]), split = ';')[[1]]
+  
+  # Whether there is cue (whether they select "9")
+  if (length(this_cue_code_list) == 1 && this_cue_code_list[1] == "9") {
+    cue_ema$cue_exist[i] <- "No"
+  } else {
+    cue_ema$cue_exist[i] <- "Yes"
+  }
+  
+  # Convert cue codes into readable texts
+  for (cue_code in this_cue_code_list) {
+    # If they select "other", also provide the description of the drinking cue
+    if (cue_code == "8") {
+      cue <- paste0("other (", cue_ema$drinkingQ6a[i], ")")
+    # Use the dictionary to decode the drinking cues
+    } else {
+      cue <- as.character(cues_dict[cue_code])
+    }
+    this_cue_list[[length(this_cue_list) + 1]] <- cue
+  }
+  cue_list[[length(cue_list) + 1]] <- this_cue_list
+}
+
+# Append the list back to the drinking cue data frame
+cue_ema$cue_list <- cue_list
+```
+
+```{r}
+# Save the cues as strings in another column
+cue_ema$cue_char <- NA
+for (i in 1:nrow(cue_ema)) {
+  cue_ema$cue_char[i] <- stri_paste(unlist(cue_ema$cue_list[i]), collapse='; ')
+}
+```
+
+```{r}
+# Show the result of the processed cue dataframe
+cue_ema
+```
+
+Connect the reported cues with GPS data for visualization.
+
+```{r}
+gps_df_processed_2 <- gps_df_processed
+
+cue_ema$startTime = ymd_hms(cue_ema$startTime)
+cue_ema <- cue_ema[order(cue_ema$startTime),]
+
+# Assign the scores of urge to drink from EMA to the nearest GPS ponits in time
+gps_df_processed_2$time_diff <- NA
+gps_df_processed_2$cue_exist <- NA
+gps_df_processed_2$cue_list <- NA
+for (i in 1:nrow(cue_ema)) {
+  for (j in 1:nrow(gps_df_processed_2)) {
+    # Calculate the time difference
+    gps_df_processed_2$time_diff[j] <- abs(as.numeric(cue_ema$startTime[i]) - as.numeric(gps_df_processed_2$time[j]))
+    if (j >= 2) {
+      # Find the smallest time difference
+      if (gps_df_processed_2$time_diff[j] > gps_df_processed_2$time_diff[j-1]) {
+        gps_df_processed_2$cue_exist[j-1] <- cue_ema$cue_exist[i]
+        gps_df_processed_2$cue_list[j-1] <- cue_ema$cue_list[i]
+        break
+      }
+    }
+  }
+}
+
+cue <- gps_df_processed_2 %>% 
+  dplyr::select(uid, time, longitude, latitude, cue_exist, cue_list) %>%
+  drop_na(cue_exist) %>%
+  distinct(time, .keep_all = TRUE)
+```
+
+```{r}
+# For map view - Only preserve GPS points where drinking urge are reported
+cue_point <- st_as_sf(cue, coords = c("longitude", "latitude"), crs = crs_latlng)
+```
+
+```{r}
+# For line graph - Preserve all GPS points
+cue_plotly <- cue
+```
+
+### 2.3.3 Emotions
+
+The following data processing is based on these questions asked in EMA surveys.
+
+-   Emotion level:
+
+    1.  How unpleasant or distressing are the emotions you were experiencing at the time of the (emotional experience/prompt)? `expQ2`
+    2.  How pleasant were the emotions you were experiencing at the time of the (emotional experience/prompt)? `expQ3`
+
+-   Emotion Duration:
+
+    1.  Approximately what time did you begin feeling this emotion? `expQ7`
+    2.  Are you still feeling this emotion now? `expQ8` If no, when did you stop feeling this emotion? `expQ8a`
+
+```{r}
+ema_df_1 <- ema_df
+for (i in 1:nrow(ema_df_1)) {
+  
+  # Format the start time of the positive/negative emotion
+  ema_df_1$start_time[i] <- as.character(ymd_hms(paste0(substr(ema_df_1$startTime[i], 1, 11), ema_df_1$expQ7[i], ":00")))
+  
+  # Format the end time of the positive/negative emotion
+  # (1) If the person is not in the emotion at the moment, use the reported end time as the end time of that emotion.
+  if (ema_df_1$expQ8[i] == "No") {
+    ema_df_1$end_time[i] <- as.character(ymd_hms(paste0(substr(ema_df_1$startTime[i], 1, 11), ema_df_1$expQ8a[i], ":00")))
+  }
+  # (2) If the person is still in the emotion at the moment, use the start time of the survey as the end time of that emotion
+  else {
+    ema_df_1$end_time[i] <- ema_df_1$startTime[i]
+  }
+  
+  # Whether the assessment is self-initiated? 1 as "Yes"; 0 as "No (random prompt)" (Currently not in use)
+  # if (ema_df_1$expQ1[i] == "a") {
+  #   ema_df_1$self[i] <- 1
+  # }
+  # else {
+  #   ema_df_1$self[i] <- 0
+  # }
+}
+    
+ema_emotion <- ema_df_1 %>%
+  mutate(emo_unpleasant = -expQ2,
+         emo_pleasant = expQ3,
+         emo_average = expQ3 - expQ2) %>%
+  arrange(start_time)
+
+# Parse time columns to POSIX
+ema_emotion$start_time = ymd_hms(ema_emotion$start_time)
+ema_emotion$end_time = ymd_hms(ema_emotion$end_time)
+```
+
+Connect the emotions with GPS data for visualization.
+
+```{r message=FALSE, warnings=FALSE}
+# For map view - Only preserve GPS points where emotion events are reported
+ema_emotion_point <- gps_df_processed %>%
+  left_join(ema_emotion, by = "uid") %>% # Join GPS records to EMA data set by matching the time stamps to each of the time periods.
+  mutate(inRange = (time >= start_time - 5 * 60 & time <= end_time + 5 * 60)) %>% # Allow a 5-min deviation
+  filter(inRange) %>%
+  dplyr::select(uid, time, emo_unpleasant, emo_pleasant, emo_average, longitude, latitude)
+ema_emotion_point <- st_as_sf(ema_emotion_point, coords = c("longitude", "latitude"), crs = crs_latlng)
+
+# For line graph - Preserve all GPS points, NAs are replaced by zeros
+ema_emotion_plotly <- gps_df_processed %>%
+  left_join(ema_emotion_point, by = "time") %>%
+  mutate_at(c('emo_unpleasant', 'emo_pleasant', 'emo_average'), ~replace_na(.,0)) %>%
+  # Rolling average with the window size of 7 and central time stamp selected
+  mutate(emo_rolling_average = rollmean(emo_average, k = 7, fill = NA, align = 'center')) %>%
+  dplyr::select(time, emo_unpleasant, emo_pleasant, emo_rolling_average) %>%
+  distinct(time, .keep_all = TRUE)
+```
+
+### 2.3.4 Self-Reported Addresses
+
+Geocode the addresses.
+
+```{r}
+addr_geocoded_df <- addr_df %>%
+  tidygeocoder::geocode(address = address, method = "arcgis") # Can also use "osm" or "census"
+
+addr_geocoded_df
+```
+
+Preview the locations.
+
+```{r}
+loc_type_pal <- colorFactor(palette = c("navy", "red", "purple", "orange"),
+                            level = c("home", "drink", "buy", "other"))
+```
+
+```{r}
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "CartoDB.Positron") %>%
+  addCircleMarkers(
+    data = addr_geocoded_df,
+    lat = ~lat,
+    lng = ~long,
+    color = ~loc_type_pal(locationType),
+    radius = 5,
+    stroke = FALSE,
+    fillOpacity = 1,
+    label = paste0(addr_geocoded_df$locationType),
+    popup = paste0("Location Type: ", addr_geocoded_df$locationType, "<br>",
+                   "Address: ", addr_geocoded_df$address))
+```
+
+# 3 Creating the alcohol density layer
+
+## 3.1 Geocode Alcohol Outlets
+
+**If there is an old geocoded file, use section "3.2 Update Geocoded Results" to get a new geocoded dataset.**
+
+1.  Load the original alcohol outlet dataset (.csv) downloaded from [DATA.NY.GOV](https://data.ny.gov/Economic-Development/Liquor-Authority-Current-List-of-Active-Licenses/hrvs-fxs2/data).
+
+    ```{r}
+    alcohol_outlets_csv <- rstudioapi::selectFile(caption = "Select alcohol outlet file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+    alcohol_outlets_df <- read.csv(alcohol_outlets_csv, header=TRUE)
+    ```
+
+2.  Get the complete address for each active license.
+
+    Location information is stored in multiple columns of the original dataset. Combine them to get complete addresses.
+
+    ```{r}
+    for (i in 1:nrow(alcohol_outlets_df)) {
+      alcohol_outlets_df$complete_address[i] <- 
+        paste0(alcohol_outlets_df$Premise.Address[i], ", ", 
+               alcohol_outlets_df$Premise.Address.2[i], ", ",
+               alcohol_outlets_df$Premise.City[i], ", ",
+               alcohol_outlets_df$County[i], ", ",
+               alcohol_outlets_df$Premise.State[i], ", ",
+               alcohol_outlets_df$Premise.Zip[i])
+    }
+    ```
+
+3.  Perform geocoding through combined methods: Google Geocoding API, ArcGIS Single Address Geocoding API, and OpenStreetMap Nominatim.
+
+    -   This step will take more than 2 hours. So, the following block will randomly produce a smaller sample to test geocoding. Once the results seem correct, apply geocoding to the entire dataset.
+
+    -   ⚠️ In order to use Google Geocoding API, an API key needs registering from Google. (See [here](https://developers.google.com/maps/documentation/geocoding/overview).)
+
+    -   Add API key to R environment through the following steps:
+
+        -   Run `usethis::edit_r_environ()` to open the .Renviron file.
+
+        -   Add the key to the file and end with a new line.\
+            E.g., GOOGLEGEOCODE_API_KEY = "AIzaSK45twesgyrSj9678Z4qyHBV2M86sL4"
+
+        -   Save and close the file. Restart current R session to take effect.
+
+<!-- -->
+
+a.  Use the following code blocks to **test** geocoding on a smaller sample.
+
+```{r}
+# Collect a sample dataset with 10 records.
+sample_addresses <- sample_n(alcohol_outlets_df, 10)
+
+sample_geocoded <- sample_addresses %>%
+  geocode_combine(
+    queries = list(#list(method = "google"),
+                   list(method = "arcgis"),
+                   list(method = "osm")
+    ),
+    global_params = list(address = "complete_address"),
+    cascade = TRUE
+  )
+
+sample_geocoded[c("complete_address", "lat", "long", "query")]
+```
+
+b.  Apply geocoding on the entire alcohol outlet dataset. ( ⚠️ This step took 2.5 hours last time.)
+
+```{r}
+alcohol_outlets_geocoded <- alcohol_outlets_df %>%
+  geocode_combine(
+    queries = list(list(method = "google"),
+                   list(method = "arcgis"),
+                   list(method = "osm")
+    ),
+    global_params = list(address = "complete_address"),
+    cascade = TRUE
+  )
+```
+
+```{r}
+# Save the geocoded result to a csv file
+alcohol_outlets_geocoded_csv_path <- rstudioapi::selectFile(caption = "Save the geocoded result to a csv file", label = "Save", filter = "CSV Files (*.csv)", existing = FALSE)
+write.csv(alcohol_outlets_geocoded, alcohol_outlets_geocoded_csv_path, row.names=FALSE)
+```
+
+## 3.2 **Update Geocoded Results**
+
+Compare the differences between the old dataset of addresses and the newly downloaded one, and only geocode the detected new alcohol premises.
+
+-   We will first need to find the identical rows by matching the serial number (which is unique for each licensee in the dataset) in both dataframes. Then we figure out which rows are only in the new dataframe. And based on that, we only need to geocode the newly added alcohol outlets.
+
+1.  Download the old and new alcohol outlet datasets (.csv).
+
+    ```{r}
+    # Old file
+    old_alcohol_outlets_csv <- rstudioapi::selectFile(caption = "Select the old geocoded alcohol outlet file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+    old_df <- read.csv(old_alcohol_outlets_csv, header=TRUE)
+
+    # New file
+    new_alcohol_outlets_csv <- rstudioapi::selectFile(caption = "Select new alcohol outlet file", label = "Select", filter = "CSV Files (*.csv)", existing = TRUE)
+    new_df <- read.csv(new_alcohol_outlets_csv, header=TRUE)
+
+    for (i in 1:nrow(new_df)) {
+      new_df$complete_address[i] <- 
+        paste0(new_df$Premise.Address[i], ", ", 
+               new_df$Premise.Address.2[i], ", ",
+               new_df$Premise.City[i], ", ",
+               new_df$County[i], ", ",
+               new_df$Premise.State[i], ", ",
+               new_df$Premise.Zip[i])
+    }
+    ```
+
+    ```{r}
+    View(old_df)
+    View(new_df)
+    ```
+
+2.  Compare two datasets.
+
+    ```{r}
+    for (i in 1:nrow(new_df)) {
+      if (new_df$Serial.Number[i] %in% old_df$Serial.Number) {
+        new_df$exist[i] <- 1
+      } else {
+        new_df$exist[i] <- 0
+      }
+    }
+
+    # Newly added outlets
+    new_outlets <- new_df %>% filter(exist == 0)
+
+    for (i in 1:nrow(old_df)) {
+      if (old_df$Serial.Number[i] %in% new_df$Serial.Number) {
+        old_df$exist[i] <- 1
+      } else {
+        old_df$exist[i] <- 0
+      }
+    }
+
+    # Already geocoded outlets
+    old_outlets <- old_df %>% filter(exist == 1)
+    ```
+
+3.  Apply geocoding to the newly added outlets. ⚠️This step may take some time. ⚠️
+
+    ```{r}
+    new_outlets_geocoded <- new_outlets %>%
+      geocode_combine(
+        queries = list(#list(method = "google"),
+                       list(method = "arcgis"),
+                       list(method = "osm")
+        ),
+        global_params = list(address = "complete_address"),
+        cascade = TRUE
+      )
+    ```
+
+    ```{r}
+    # Concatenate the new and old geocoded dataframes
+    alcohol_outlets_geocoded <- rbind(old_outlets, new_outlets_geocoded)
+
+
+    #Name it NYS_Alcohol_Outlets_Locations_date_.csv and save it in data
+    # Save the combined geocoded result to a csv file
+    alcohol_outlets_geocoded_csv_path <- rstudioapi::selectFile(caption = "Save the geocoded result to a csv file", label = "Save", filter = "CSV Files (*.csv)", existing = FALSE)
+    write.csv(alcohol_outlets_geocoded, alcohol_outlets_geocoded_csv_path, row.names=FALSE)
+    ```
+
+## 3.3 Alcohol Kernel Density Estimation
+
+The KDE is performed on the geocoded alcohol outlet dataset. Different bandwidth and resolution values are selected to produce the results.
+
+1.  Load data.
+
+```{r}
+# Read in the shp file of New York State boundary and reproject it
+# shp extentsion type
+nys_counties_shp_path <- rstudioapi::selectFile(caption = "Select New York State counties shoreline boundary shape file", label = "Select", existing = TRUE)
+nys_counties_shp <- st_read(nys_counties_shp_path)
+nys_counties_shp_proj <- st_transform(nys_counties_shp, crs = crs_proj)
+
+# Read in the geocoded alcohol outlet dataset and reproject it
+#NYS_Alcohol_Outlets_Locations_date.csv
+alcohol_outlets_geocoded_csv <- rstudioapi::selectFile(caption = "Select geocoded alcohol outlet csv file", label = "Select", existing = TRUE)
+alcohol_outlets_geocoded <- read.csv(alcohol_outlets_geocoded_csv, header=TRUE)
+
+alcohol_outlets_sf <- st_as_sf(alcohol_outlets_geocoded, coords = c("long", "lat"), crs = crs_latlng)
+alcohol_outlets_sf <- st_transform(alcohol_outlets_sf, crs = crs_proj)
+```
+
+-   Clean the geocoded dataset by filtering out those points that lies outside New York State.
+
+    ```{r}
+    alcohol_outlets_by_county_sf <- st_intersection(alcohol_outlets_sf, nys_counties_shp_proj)
+    ```
+
+-   Preview the map of alcohol outlets of the entire New York State. (It will take some time for the map to be rendered.)
+
+    ```{r}
+    alcohol_outlets_by_county_sf_4326 <- st_transform(alcohol_outlets_by_county_sf, crs = crs_latlng)
+
+    alcohol_map <- leaflet() %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%
+      addCircleMarkers(
+        data = alcohol_outlets_by_county_sf_4326,
+        group = "Alcohol Outlets",
+        radius = 3,
+        fillColor = "darkred",
+        fillOpacity = 1,
+        stroke = FALSE,
+        popup = paste0("Name: ", alcohol_outlets_by_county_sf_4326$Premise.Name,
+                       "<br>Type: ", alcohol_outlets_by_county_sf_4326$Method.of.Operation,
+                       "<br>Address: ", alcohol_outlets_by_county_sf_4326$complete_address),
+        popupOptions = popupOptions(closeButton=FALSE, closeOnClick=TRUE)
+      )
+    alcohol_map
+    ```
+
+2.  Preprocessing
+
+-   All license types existing in the NYS alcohol dataset are classified into **3 groups: on-premises , off-premises , and other(including the operation types of wholesale, craft, manufacture)**. For those premise types that I did not find on any website, I classified them by checking the original dataset and comparing them with each type in [this reference](https://sla.ny.gov/get-license)). I combined manufacturing and wholesale as one type for the reason that many license types allow both producing and selling alcohol.
+
+| Name | Group | Detail                                                                                                                                                                                                                                                                                                                                                           |
+|---------------|---------------|-------------------------------------------|
+| A    | off   | Grocery Store Beer. Allows a person to sell beer and cider for off premises consumption from a premises being operated as a grocery store. More than 50% of the retail floor space must be devoted to the sale of grocery items. Candy, carbonated beverages and snacks (such as chips) are not deemed to be groceries.                                          |
+| AL   | on    | Allows a United States certified airline to sell beer, wine, liquor and cider to passengers while in transit.                                                                                                                                                                                                                                                    |
+| AW   | off   | Wine Product Permit Off Premises                                                                                                                                                                                                                                                                                                                                 |
+| AX   | off   | Grocery store/drug store license which permits sale of beer and wine coolers for off premises consumption.                                                                                                                                                                                                                                                       |
+| BB   | on    | Bed and Breakfast Liquor 3 Bedrooms. Allows a food provider hired by a licensee to operate within a licensed premises. A concessionaire may not handle alcohol at any time. The application should be filed and approved prior to the concessionaire operating at the premises.                                                                                  |
+| BB   | on    | Bed and Breakfast Liquor 4 Bedrooms. Allows a food provider hired by a licensee to operate within a licensed premises. A concessionaire may not handle alcohol at any time. The application should be filed and approved prior to the concessionaire operating at the premises.                                                                                  |
+| BB   | on    | Bed and Breakfast Liquor 5 Bedrooms. Allows a food provider hired by a licensee to operate within a licensed premises. A concessionaire may not handle alcohol at any time. The application should be filed and approved prior to the concessionaire operating at the premises.                                                                                  |
+| BC   | other | Wholesale Cider. Authorizes Wholesale Beer licensee to sell cider.                                                                                                                                                                                                                                                                                               |
+| BL   | on    | Bottle Club Liquor. Premises for consumption only, no sales, capacity of at least 20.                                                                                                                                                                                                                                                                            |
+| BP   | on    | Ball Park Beer. Allows a person to serve beer in baseball parks, race tracks and other athletic fields or stadiums where admission fees are charged.                                                                                                                                                                                                             |
+| BW   | on    | Bed and Breakfast Wine. Allows a food provider hired by a licensee to operate within a licensed premises. A concessionaire may not handle alcohol at any time. The application should be filed and approved prior to the concessionaire operating at the premises.                                                                                               |
+| C    | other | Wholesale Beer. Authorizes licensee to sell wholesale, and to sell to the consumer at retail. This license type is only available to applicants that are purchasing an existing business that holds a C 103 License.                                                                                                                                             |
+| CB   | on    | Club beer. Allows the service of alcoholic beverages by a not for profit corporation or fraternal organization in a premises for exclusive club purposes. The service of alcoholic beverages is for members and their guests only. This license is also available seasonally.                                                                                    |
+| CD   | other | Cider Wholesaler. Authorizes licensee to sell cider at wholesale.                                                                                                                                                                                                                                                                                                |
+| CF   | other | Farm cidery.                                                                                                                                                                                                                                                                                                                                                     |
+| CL   | on    | Club liquor. Club license which permits on premises consumption of all types of alcoholic beverages to members of club and their guests.                                                                                                                                                                                                                         |
+| CM   | other | COMBINED CRAFT MANUFACTURING                                                                                                                                                                                                                                                                                                                                     |
+| CO   | other | Wholesale Beer. Authorizes licensee to sell wholesale. Not permitted to sell at retail to the public.                                                                                                                                                                                                                                                            |
+| CR   | on    | Cabaret Liquor. Allows a person to serve beer, wine, liquor and cider upon a premises specializing in musical entertainment. Must have a capacity for at least 600 persons. The sale of unopened beer to go is allowed.                                                                                                                                          |
+| CT   | on    | Allows a person to serve alcoholic beverages in their rentable banquet venue for private events only. The premises is never open to the general public. Such premises must have suitable and adequate facilities and accommodations to provide food and service for not less than fifty persons. This license is also available seasonally.                      |
+| CW   | on    | Club wine. Allows the service of alcoholic beverages by a not for profit corporation or fraternal organization in a premises for exclusive club purposes. The service of alcoholic beverages is for members and their guests only. This license is also available seasonally.                                                                                    |
+| CX   | other | Custom Beermakers' Center                                                                                                                                                                                                                                                                                                                                        |
+| CZ   | other | Custom Winemakers' Center                                                                                                                                                                                                                                                                                                                                        |
+| D    | other | Brewery.                                                                                                                                                                                                                                                                                                                                                         |
+| DA   | other | Distiller Class A.                                                                                                                                                                                                                                                                                                                                               |
+| DB   | other | Distiller Class B.                                                                                                                                                                                                                                                                                                                                               |
+| DC   | off   | Drug Store Beer and Wine Products.                                                                                                                                                                                                                                                                                                                               |
+| DD   | other | Farm Distiller Class D.                                                                                                                                                                                                                                                                                                                                          |
+| DS   | off   | Drug Store Beer. Allows a person to sell beer and cider for off premises consumption from a premises being operated as a New York State licensed drug store.                                                                                                                                                                                                     |
+| DW   | other | Winery                                                                                                                                                                                                                                                                                                                                                           |
+| DX   | off   | Drug Store Beer and Wine Products. Allows a person to sell beer, cider and wine products for off premises consumption from a New York State licensed drug store.                                                                                                                                                                                                 |
+| EB   | on    | Eating Place Beer license that permits the on premises consumption of beer.                                                                                                                                                                                                                                                                                      |
+| EL   | on    |                                                                                                                                                                                                                                                                                                                                                                  |
+| FD   | other | Farm Brewery.                                                                                                                                                                                                                                                                                                                                                    |
+| FP   | other |                                                                                                                                                                                                                                                                                                                                                                  |
+| FW   | other | Farm Winery.                                                                                                                                                                                                                                                                                                                                                     |
+| FY   | other | Farm Meadery.                                                                                                                                                                                                                                                                                                                                                    |
+| GC   | on    |                                                                                                                                                                                                                                                                                                                                                                  |
+| HL   | on    | Hotel Liquor. Hotel license which permits on premises consumption of all types of alcoholic beverages.                                                                                                                                                                                                                                                           |
+| HW   | on    | Hotel wine.                                                                                                                                                                                                                                                                                                                                                      |
+| IL   | other | Importer. Authorizes licensee to import alcohol and sell to a licensed NYS wholesaler.                                                                                                                                                                                                                                                                           |
+| L    | off   | Liquor store license which permits sale of liquor and wine for off premises consumption.                                                                                                                                                                                                                                                                         |
+| LL   | other | Wholesale Liquor. Authorizes licensee to sell liquor and wine at wholesale.                                                                                                                                                                                                                                                                                      |
+| MD   | other | Mead producer.                                                                                                                                                                                                                                                                                                                                                   |
+| MI   | other | Micro-brewer.                                                                                                                                                                                                                                                                                                                                                    |
+| MR   | on    | Restaurant brewer. Allows a person to brew beer on the premises as well as operate a bona fide restaurant serving beer, wine, liquor and cider. The premises must have a kitchen and full menu. A person may operate up to five separate locations, and may produce 5,000 barrels of beer per location, not to exceed 20,000 barrels in total for all locations. |
+| MU   | on    |                                                                                                                                                                                                                                                                                                                                                                  |
+| MW   | other | MICRO FARM WINERY                                                                                                                                                                                                                                                                                                                                                |
+| NC   | on    | NIGHTCLUB/CABARET SERVING LIQUOR, WINE, BEER, & CIDER                                                                                                                                                                                                                                                                                                            |
+| OP   | on    | On Premises. Full liquor license which permits on premises consumption of all types of alcoholic beverages. Also permits sale of beer for off premises consumption.                                                                                                                                                                                              |
+| RL   | on    | Restaurant Liquor.                                                                                                                                                                                                                                                                                                                                               |
+| RR   | on    | Allows a railroad company to serve beer, wine liquor and cider to passengers while in transit.                                                                                                                                                                                                                                                                   |
+| RS   | off   | Roadside Farm Market. Allows a person to sell wine for off premises consumption from a roadside farm market being operated on a farm. May sell wine manufactured by two (2) licensed farm, special or micro wineries within twenty miles of the roadside farm market.                                                                                            |
+| RW   | on    | Restaurant Wine license that permits the on premises consumption of wine and beer.                                                                                                                                                                                                                                                                               |
+| SB   | on    | Summer Eating Place Beer Summer Hotel Beer Summer Club Beer (Members Only)                                                                                                                                                                                                                                                                                       |
+| SL   | on    | Summer Golf Club. Allows a private golf club to serve beer, wine, liquor and cider to members and their guests. This license is for golf clubs who are not open to the public.                                                                                                                                                                                   |
+| TL   | on    | Tavern Liquor.                                                                                                                                                                                                                                                                                                                                                   |
+| TW   | on    | Tavern Wine. If you have an on-premises wine license, you can sell wine, beer, wine products and cider to be consumed in your establishment. You can also sell wine, beer, wine products and cider "to go". The license is identified with either a "RW" or "TW" (depending on the type of business) before the serial number                                    |
+| VL   | on    | Vessel Liquor. Allows a person to serve alcoholic beverages upon a vessel used for transportation, fishing or sightseeing. ABC Law Sections 64 and 106. This license is also available seasonally.                                                                                                                                                               |
+| W    | off   | Wine Store. Allows a person to sell wine and cider for off premises consumption from a premises solely devoted to do so. Only one license of this type will be issued to any person.                                                                                                                                                                             |
+| WA   | off   | ALCOHOLIC BEVERAGE CONTROL SATELLITE WINE STORE LICENSE                                                                                                                                                                                                                                                                                                          |
+| WC   | on    | Allows a person to serve alcoholic beverages in their rentable banquet venue for private events only. The premises is never open to the general public. Such premises must have suitable and adequate facilities and accommodations to provide food and service for not less than fifty persons. This license is also available seasonally.                      |
+| WO   | on    | BAR/TAVERN SERVING BEER, CIDER AND WINE ONLY                                                                                                                                                                                                                                                                                                                     |
+| WW   | other | Wholesale Wine. Authorizes licensee to sell wine at wholesale.                                                                                                                                                                                                                                                                                                   |
+| ZL   | on    | Winter Hotel Liquor Winter On Premises Liquor Winter OP Entertainment                                                                                                                                                                                                                                                                                            |
+| ZT   | on    | Winter Tavern Wine                                                                                                                                                                                                                                                                                                                                               |
+| ZW   | on    | Winter Restaurant Wine                                                                                                                                                                                                                                                                                                                                           |
+
+```{r}
+# classify into on-premise, off-premise and other.
+on <- c("AL","BB","BL","BP","BW","CB","CL","CR","CT","CW","EB","EL","GC","HL","HW","MR","MU","NC","OP","RL","RR","RW","SB","SL","TL","TW","VL","WC","WO","ZL","ZT","ZW")
+off <- c("A","AW","AX","DC","DS","DX","L","RS","W","WA")
+other <- c("BC","C","CD","CF","CM","CO","CX","CZ","D","DA","DB","DD","DW","FD","FP","FW","FY","IL","LL","MD","MI","MW","WW")
+
+# Set weights
+w_on <- 10
+w_off <- 5
+w_other <- 1
+```
+
+Since the density of alcohol licenses is extremely high (outliers) in NYC and Long Island, I excluded those areas using the following code block.
+
+```{r}
+alcohol <- alcohol_outlets_by_county_sf %>%
+  # Exclude alcohol licenses in NYC and Long Island
+  dplyr::filter(NYC == "N") %>%
+  dplyr::filter(NAME != "Nassau") %>%
+  dplyr::filter(NAME != "Suffolk") %>%
+  # Add weights to each license based on their type
+  dplyr::mutate(weight = case_when(License.Type.Code %in% on ~ w_on,
+                                     License.Type.Code %in% off ~ w_off,
+                                     License.Type.Code %in% other ~ w_other))
+
+nys <- nys_counties_shp_proj %>%
+  # Exclude alcohol licenses in NYC and Long Island
+  dplyr::filter(NYC == "N") %>%
+  dplyr::filter(NAME != "Nassau") %>%
+  dplyr::filter(NAME != "Suffolk")
+```
+
+3.  Apply Kernel Density Estimation on a sample dataset.
+
+```{r}
+# Randomly select a sample that contains 1000 alcohol outlets
+set.seed(42)
+samp <- sample_n(alcohol, 100)
+```
+
+```{r}
+# Geographic data have to be projected before calculating density
+samp <- st_transform(samp, crs = crs_proj)
+
+samp_ppp <- as.ppp(st_geometry(samp))
+marks(samp_ppp) <- samp$weight
+samp_ppp_km <- rescale(samp_ppp, 1000, "km")
+```
+
+```{r}
+nys <- st_transform(nys, crs = crs_proj)
+win_nys <- as.owin(nys)
+win_nys_km <- rescale(win_nys, 1000, "km")
+```
+
+```{r}
+Window(samp_ppp_km) <- win_nys_km
+plot(samp_ppp_km, main=NULL, cols=rgb(0,0,0,.2), pch=20)
+```
+
+```{r}
+#This step also takes some time
+samp_dens <- density(samp_ppp_km,
+                weights = samp_ppp_km$marks,
+                sigma = 0.5, # Bandwidth = 0.5 km
+                eps = 0.3, # Output resolution = 0.3*0.3 sq.km
+                edge = TRUE,
+                diggle = TRUE,
+                positive = TRUE,
+                at="pixels")
+```
+
+```{r}
+plot(samp_dens, main=NULL, las=1)
+# contour(alcohol_dens, add=TRUE) # Add contour to the visualization of the results.
+```
+
+4.  Apply Kernel Density Estimation on the entire dataset.
+
+```{r}
+# Geographic data have to be projected before calculating density
+alcohol_trans <- st_transform(alcohol, crs = crs_proj)
+
+alcohol_ppp <- as.ppp(st_geometry(alcohol_trans))
+marks(alcohol_ppp) <- alcohol_trans$weight
+alcohol_ppp_km <- rescale(alcohol_ppp, 1000, "km")
+```
+
+```{r}
+nys <- st_transform(nys, crs = crs_proj)
+win_nys <- as.owin(nys)
+win_nys_km <- rescale(win_nys, 1000, "km")
+```
+
+```{r}
+Window(alcohol_ppp_km) <- win_nys_km
+plot(alcohol_ppp_km, main=NULL, cols=rgb(0,0,0,.2), pch=20)
+```
+
+This following block may take about 30 min to finish.
+
+```{r}
+alcohol_dens <- density(alcohol_ppp_km,
+                weights = alcohol_ppp_km$marks,
+                sigma = 0.3, # Bandwidth = 0.3 km
+                eps = 0.15, # Output resolution = 0.15*0.15 sq.km
+                edge = TRUE,
+                diggle = TRUE,
+                positive = TRUE,
+                at="pixels")
+```
+
+```{r}
+plot(alcohol_dens, main=NULL, las=1)
+# contour(alcohol_dens, add=TRUE) # Add contour to the visualization of the results.
+```
+
+```{r}
+alcohol_dens_m <- rescale(alcohol_dens, 0.001, "m")
+```
+
+```{r}
+# Convert the "im" object into a raster
+alcohol_dens_ras <- raster(alcohol_dens_m)
+# Give a name to the raster
+names(alcohol_dens_ras) <- "kernelDensity"
+# Define the projection of the raster
+crs(alcohol_dens_ras) <- crs_proj
+# Re-project the raster for visualization using leaflet
+alcohol_dens_ras_proj <- projectRaster(alcohol_dens_ras, crs = 3857)
+```
+
+4.  Visualize the KDE result.
+
+```{r}
+ras_values <- c(values(alcohol_dens_ras_proj), values(alcohol_dens_ras_proj))
+
+pal <- colorNumeric(c("#FFF7E0", "#FF5733", "#581845"),
+                    ras_values, 
+                    na.color = "transparent")
+```
+
+```{r}
+leaflet() %>%
+  addTiles() %>%
+  addRasterImage(alcohol_dens_ras_proj,
+                 project = FALSE,
+                 colors = pal,
+                 opacity = 0.6) %>%
+  addLegend(pal = pal,
+            values = ras_values,
+            title = "Kernel Density")
+```
+
+5.  Save the result.
+
+There are two ways to save the resulting raster. For temporary use (e.g., when you are testing the code on a smaller sample), save the raster as a .rds file; for saving the results, use a .tif format.
+
+Note that you will need a .tif file if you want to use it in the R Shiny App (the dashboard).
+
+```{r}
+# Save as .rds
+dens_rds_path <- rstudioapi::selectFile(caption = "Save the density layer as a rds file", label = "Save", existing = FALSE)
+saveRDS(alcohol_dens_ras_proj,
+        file = paste0(dens_rds_path, ".rds"))
+```
+
+```{r}
+# Save as .tif
+dens_tif_path <- rstudioapi::selectFile(caption = "Save the density layer as a tif file", label = "Save", existing = FALSE)
+writeRaster(alcohol_dens_ras_proj,
+            filename = paste0(dens_tif_path, ".tif"),
+            format="GTiff",
+            overwrite=TRUE) # Overwrite the existing file in the chosen directory if it has the same name as the output file
+```
+
+6.  Load saved results from files.
+
+```{r}
+# Read .rds file
+dens_rds_path <- rstudioapi::selectFile(caption = "Select the density layer", label = "Select", existing = TRUE)
+alcohol_dens_ras_proj <- read_rds(dens_rds_path)
+```
+
+```{r}
+# Read .tif file
+dens_tif_path <- rstudioapi::selectFile(caption = "Select the density layer", label = "Select", existing = TRUE)
+alcohol_dens_ras_proj <- raster(dens_tif_path)
+```
+
+# 4 Test Visualization
+
+## 4.1 Timeline
+
+(1) The Dygraphs version
+
+    This plot only includes positive emotions, negative emotions, average emotions and drinking duration.
+
+```{r}
+# Convert into xts format
+positive <- xts(x = ema_emotion_plotly$emo_pleasant, order.by = ema_emotion_plotly$time)
+negative <- xts(x = ema_emotion_plotly$emo_unpleasant, order.by = ema_emotion_plotly$time)
+rolling_average <- xts(x = ema_emotion_plotly$emo_rolling_average, order.by = ema_emotion_plotly$time)
+emotion_xts <- cbind(positive, negative, rolling_average)
+
+# Create ribbon data for the line graph
+drinking_or_not <- drinking_time_plotly$fake_value
+drinking <- which(drinking_or_not == 10)
+ribbon_data <- rep(0, nrow(emotion_xts))
+ribbon_data[drinking] <- 1
+```
+
+```{r}
+dygraph(emotion_xts) %>%
+  dyAxis("y", valueRange = c(-10, 11)) %>%
+  dySeries('positive', fillGraph = TRUE, label = "Positive", drawPoints = FALSE, pointSize = 0, color = "rgba(127, 206, 89, 1)") %>% # Green
+  dySeries('negative', fillGraph = TRUE, label = "Negative", drawPoints = FALSE, pointSize = 0, color = "rgba(65, 213, 255, 1)") %>% # Blue
+  dySeries('rolling_average', label = "Rolling Average", drawPoints = TRUE, pointSize = 1.5, strokeWidth = 1.5, color = 'rgba(62, 8, 165, 1)') %>% # Purple
+  dyLegend(width = 500) %>%
+  # dyHighlight(highlightCircleSize = 3,
+  #             highlightSeriesBackgroundAlpha = 0.5,
+  #             hideOnMouseOut = FALSE,
+  #             highlightSeriesOpts = list(strokeWidth = 3)) %>%
+  dyRangeSelector(height = 30,
+                  fillColor = "lightgray",
+                  strokeColor = "") %>%
+  # Ribbon
+  dyRibbon(data = ribbon_data, top = 1, bottom = 0,
+           palette = c("#FFFFFF", "#F6CECE"))
+```
+
+2.  The plotly version
+
+    Bring all elements into one interactive plot.
+
+```{r}
+plot_ly() %>%
+      
+  # Drinking time
+  add_trace(data = drinking_time_plotly,
+            x = ~time, y = ~fake_value,
+            type = 'scatter',
+            mode = 'lines',
+            line = list(color = 'rgba(255, 86, 70, 0)'),
+            showlegend = FALSE,
+            hoverinfo = 'none') %>%
+  add_trace(data = drinking_time_plotly, x = ~time, y = ~fake_value*(-1),
+            type = 'scatter',
+            mode = 'lines',
+            line = list(color = 'rgba(255, 86, 70, 0)'),
+            fill = 'tonexty',
+            fillcolor='rgba(255, 86, 70, 0.3)',
+            showlegend = FALSE,
+            hoverinfo = 'none') %>%
+  
+  # Urge to drink
+  add_trace(data = urge_plotly,
+            x = ~time, y = ~urge_alcohol,
+            type = 'scatter', mode = 'lines',
+            line = list(color = "#FDAC14"), # Orange
+            name = "Drinking Urge") %>%
+  
+  # Emotion
+  add_trace(data = ema_emotion_plotly,
+            x = ~time, y = ~emo_rolling_average,
+            type = 'scatter', mode = 'lines',
+            line = list(color = "rgba(62, 8, 165, 1)"), # Purple
+            name = "Average Emotion") %>%
+  add_trace(data = ema_emotion_plotly,
+            x = ~time, y = ~emo_pleasant,
+            type = 'scatter', mode = 'lines',
+            line = list(color = "rgba(127, 206, 89, 1)"), # Green
+            name = "Positive Emotion") %>%
+  add_trace(data = ema_emotion_plotly,
+            x = ~time, y = ~emo_unpleasant,
+            type = 'scatter', mode = 'lines',
+            line = list(color = "rgba(65, 213, 255, 1)"), # Blue
+            name = "Negative Emotion") %>%
+  
+  # Range slider and range selector
+  layout(xaxis = list(rangeslider = list(visible = T, type = "date", verticalheight = 20),
+                      rangeselector = list(
+                        buttons = list(
+                          list(count = 1, label = "1d", step = "day", stepmode = "backward"),
+                          list(count = 7, label = "1w", step = "day", stepmode = "todate"),
+                          list(step="all"))
+                      )
+  )
+  ) %>%
+  
+  # Other layout settings
+  layout(xaxis = list(title = NA,
+                      zerolinecolor = '#ffff',
+                      zerolinewidth = 2,
+                      gridcolor = '#ffff'),
+         yaxis = list(title = NA,
+                      zerolinecolor = '#ffff',
+                      zerolinewidth = 2,
+                      gridcolor = '#ffff'),
+         plot_bgcolor='#f2f2f2')
+```
+
+## 4.2 Map
+
+```{r}
+alcohol_marker <- awesomeIcons(
+  icon = "beer",
+  iconColor = "White",
+  markerColor = "brown",
+  library = "fa"
+)
+```
+
+```{r}
+leaflet() %>%
+      
+  # Base groups
+  addProviderTiles(providers$CartoDB.Positron, group = "CartoDB.Positron") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery") %>%
+  
+  # Overlay groups
+  ## GPS points
+  addCircleMarkers(
+    data = gps_sf,
+    group = "GPS Points",
+    radius = 3,
+    fillColor = "black",
+    fillOpacity = 1,
+    stroke = FALSE,
+    popup = paste0("Date & Time: ", gps_sf$time),
+    popupOptions = popupOptions(closeButton=FALSE, closeOnClick=TRUE)
+  ) %>%
+  ## GPS traces
+  addPolylines(
+    data = gps_line,
+    group = "GPS Polylines",
+    opacity = 0.5,
+    color = "black",
+    weight = 3) %>%
+  ## Drinking locations
+  addAwesomeMarkers(
+    data = drinking_time_point,
+    group = "Drinking Locations",
+    icon = alcohol_marker,
+  ) %>%
+  ## Negative Emotion
+  addCircleMarkers(
+    data = ema_emotion_point,
+    group = "Negative Emotion",
+    radius = ~scales::rescale(abs(emo_unpleasant), c(0,18)),
+    fillOpacity = 0.6,
+    stroke = FALSE,
+    color = "rgba(65, 213, 255, 1)", # Blue
+    popup = paste0("Being unpleasant: ", abs(ema_emotion_point$emo_unpleasant))
+  ) %>%
+  addLegendSize(
+    group = "Negative Emotion",
+    values = c(0,1,2,3,4,5,6,7,8,9,10),
+    strokeWidth = 0,
+    color = 'rgba(65, 213, 255, 1)', # Blue
+    opacity = .5,
+    title = 'Being Unpleasant',
+    shape = 'circle',
+    orientation = 'horizontal',
+    position = 'bottomright',
+    breaks = 10
+  ) %>%
+  ## Positive Emotion
+  addCircleMarkers(
+    data = ema_emotion_point,
+    group = "Positive Emotion",
+    radius = ~scales::rescale(emo_pleasant, c(0,18)),
+    fillOpacity = 0.6,
+    stroke = FALSE,
+    color = "rgba(127, 206, 89, 1)", # Green
+    popup = paste0("Being Pleasant: ", ema_emotion_point$emo_pleasant)
+  ) %>%
+  addLegendSize(
+    group = "Positive Emotion",
+    values = c(0,1,2,3,4,5,6,7,8,9,10),
+    strokeWidth = 0,
+    color = 'rgba(127, 206, 89, 1)', # Green
+    opacity = .5,
+    title = 'Being Pleasant',
+    shape = 'circle',
+    orientation = 'horizontal',
+    position = 'bottomright',
+    breaks = 10
+  ) %>%
+  
+  # Set map view to initial extent
+  addResetMapButton() %>%
+  
+  # Layer control
+  addLayersControl(
+    position = c("topleft"),
+    baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
+    overlayGroups = c("GPS Points", "GPS Polylines", "Drinking Locations", "Negative Emotion", "Positive Emotion"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup(c("GPS Polylines", "Positive Emotion"))
+```
