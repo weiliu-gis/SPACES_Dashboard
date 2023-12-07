@@ -18,7 +18,7 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 if(!require(shinycssloaders)) install.packages("shinycssloaders", repos = "http://cran.us.r-project.org")
 
-# Add Shiny setting
+# Add Shiny App settings
 options(shiny.reactlog=TRUE) 
 options(shiny.maxRequestSize = 80*1024^2) # Max file size to upload to the tool
 options(spinner.color = "#abe6dc", spinner.color.background = "#ffffff", spinner.size = 0.5)
