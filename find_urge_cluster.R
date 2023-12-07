@@ -30,7 +30,7 @@ getgistar <- function(obs_values, sp_wt_mat){
 # Function to identify clusters
 # --------------------------------------------------------
 
-cluster_urge <- function(urge){
+findUrgeCluster <- function(urge){
   
   urge_sf <- st_as_sf(urge, coords = c("longitude", "latitude"), crs = crs_latlng)
   urge_sf_proj <- st_transform(urge_sf, crs=crs_proj)

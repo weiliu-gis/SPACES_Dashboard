@@ -1,4 +1,4 @@
-preprocess_data <- function(gps_df, base_df, ema_df){
+preprocessData <- function(gps_df, base_df, ema_df){
   
   # 2.1 GPS Traces
   # --------------------------------------------
