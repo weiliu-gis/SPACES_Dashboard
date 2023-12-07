@@ -91,13 +91,13 @@ function(input, output, session) {
   # Preprocess GPS, Daily Baseline and EMA data
   data_processed <- reactive({
     req(gps_df(), base_df(), ema_df())
-    result_list <- preprocess_data(gps_df(), base_df(), ema_df())
+    result_list <- preprocessData(gps_df(), base_df(), ema_df())
     return(result_list)
   })
   
   # Identify drinking urge clusters
   urge_cluster <- reactive({
-    result_list <- cluster_urge(data_processed()$urge)
+    result_list <- findUrgeCluster(data_processed()$urge)
     return(result_list)
   })
   
@@ -265,16 +265,6 @@ function(input, output, session) {
                        "<br>", "Description: ", addr_geocoded_df()$description,
                        "<br>", "Address: ", addr_geocoded_df()$address)
       ) %>%
-      addLegendFactor(
-        data = addr_geocoded_df(),
-        group = "Reported Addresses",
-        shape = 'circle',
-        pal = loc_type_pal,
-        values = addr_geocoded_df()$locationType,
-        title = "Location Type",
-        opacity = 0.7,
-        position = 'bottomright'
-      ) %>%
       
       # Set map view to initial extent
       addResetMapButton() %>%
@@ -311,6 +301,19 @@ function(input, output, session) {
         addControl(
           html = urge_html_legend, 
           position = "bottomright"
+        )
+    }
+    if (any(input$map_groups %in% "Reported Addresses")) {
+      proxy <- proxy %>%
+        addLegendFactor(
+          data = addr_geocoded_df(),
+          group = "Reported Addresses",
+          shape = 'circle',
+          pal = loc_type_pal,
+          values = addr_geocoded_df()$locationType,
+          title = "Location Type",
+          opacity = 0.7,
+          position = 'bottomright'
         )
     }
   })
