@@ -279,7 +279,7 @@ function(input, output, session) {
       hideGroup(c("GPS Polylines", "Negative Emotion", "Positive Emotion", "Drinking Urge", "Reported Addresses", "Drinking Cues", "Drinking Urge"))
   })
   
-  # This observer is responsible for showing and hiding the emotion and urge legends
+  # This observer is responsible for showing and hiding legends for emotion, urge, address and density layers
   observe({
     proxy <- leafletProxy("map") %>% clearControls()
     if (any(input$map_groups %in% "Negative Emotion")) {
@@ -318,37 +318,30 @@ function(input, output, session) {
     }
   })
   
+  observe({
+    proxy <- leafletProxy("map") %>% removeControl(layerId = 'density_legend')
+    if (any(input$map_groups %in% "Alcohol Kernel Density")) {
+      proxy <- proxy %>%
+        addLegend(
+          layerId = 'density_legend',
+          group = "Alcohol Kernel Density",
+          pal = kde_pal,
+          values = values(alcohol_dens_ras),
+          title = "Alcohol Kernel Density",
+          position = 'bottomleft'
+        )
+    }
+  })
+  
   # This observer is responsible for showing the alcohol exposure
   observeEvent(input$show, {
     leafletProxy("map") %>%
-      # ## Geocoded NYS alcohol outlets (Currently not in use)
-      # addCircleMarkers(
-      #   data = alcohol_loc_by_county,
-      #   group = "Alcohol Outlets",
-      #   radius = 3,
-      #   fillColor = "alcohol_loc_by_county",
-      #   fillOpacity = 1,
-      #   stroke = FALSE,
-      #   popup = paste0("Name: ", alcohol_loc_by_county$Premise.Name,
-      #                  "<br>Type: ", alcohol_loc_by_county$Method.of.Operation,
-      #                  "<br>Address: ", alcohol_loc_by_county$complete_address),
-    #   popupOptions = popupOptions(closeButton=FALSE, closeOnClick=TRUE)
-    # ) %>%
-    ## KDE
-    addRasterImage(
-      group = "Alcohol Kernel Density",
-      alcohol_dens_ras,
-      colors = kde_pal,
-      opacity = 0.6,
-      project = FALSE
-    ) %>%
-      addLegend(
+      addRasterImage(
         group = "Alcohol Kernel Density",
-        layerId = 'density_legend',
-        pal = kde_pal,
-        values = values(alcohol_dens_ras),
-        title = "Alcohol Kernel Density",
-        position = 'bottomright'
+        alcohol_dens_ras,
+        colors = kde_pal,
+        opacity = 0.6,
+        project = FALSE
       ) %>%
       addLayersControl(
         position = c("topleft"),
@@ -363,7 +356,6 @@ function(input, output, session) {
   observeEvent(input$hide, {
     leafletProxy("map") %>%
       clearGroup(c("Alcohol Kernel Density")) %>%
-      removeControl(layerId = 'density_legend') %>%
       addLayersControl(
         position = c("topleft"),
         baseGroups = c("CartoDB.Positron", "Esri.WorldImagery"),
