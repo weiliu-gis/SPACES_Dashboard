@@ -318,6 +318,7 @@ function(input, output, session) {
     }
   })
   
+  # This observer is responsible for showing and hiding alcohol density legend
   observe({
     proxy <- leafletProxy("map") %>% removeControl(layerId = 'density_legend')
     if (any(input$map_groups %in% "Alcohol Kernel Density")) {
@@ -333,7 +334,7 @@ function(input, output, session) {
     }
   })
   
-  # This observer is responsible for showing the alcohol exposure
+  # This observer is responsible for showing the alcohol exposure raster layer
   observeEvent(input$show, {
     leafletProxy("map") %>%
       addRasterImage(
