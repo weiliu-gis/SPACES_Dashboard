@@ -1,12 +1,10 @@
 ---
 title: "SPACES Data Analysis"
-output: html_document
 author: Wei Liu
+output: html_document
 ---
 
-Updated on Dec 4
-
-
+(Updated on Dec 4, 2023)
 
 This file is used to document the data processing and analysis procedures for the SPACES project.
 
@@ -946,7 +944,7 @@ alcohol_outlets_sf <- st_transform(alcohol_outlets_sf, crs = crs_proj)
 -   All license types existing in the NYS alcohol dataset are classified into **3 groups: on-premises , off-premises , and other(including the operation types of wholesale, craft, manufacture)**. For those premise types that I did not find on any website, I classified them by checking the original dataset and comparing them with each type in [this reference](https://sla.ny.gov/get-license)). I combined manufacturing and wholesale as one type for the reason that many license types allow both producing and selling alcohol.
 
 | Name | Group | Detail                                                                                                                                                                                                                                                                                                                                                           |
-|---------------|---------------|-------------------------------------------|
+|------|-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | A    | off   | Grocery Store Beer. Allows a person to sell beer and cider for off premises consumption from a premises being operated as a grocery store. More than 50% of the retail floor space must be devoted to the sale of grocery items. Candy, carbonated beverages and snacks (such as chips) are not deemed to be groceries.                                          |
 | AL   | on    | Allows a United States certified airline to sell beer, wine, liquor and cider to passengers while in transit.                                                                                                                                                                                                                                                    |
 | AW   | off   | Wine Product Permit Off Premises                                                                                                                                                                                                                                                                                                                                 |
