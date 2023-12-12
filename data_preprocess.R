@@ -5,7 +5,7 @@ preprocessData <- function(gps_df, base_df, ema_df){
   
   gps_df_processed <-
     # Filter out those records with accuracy values larger than 1000
-    filter(gps_df, accuracy < 1000) %>%
+    filter(gps_df, accuracy < 500) %>%
     # Parse to POSIX
     mutate(time = ymd_hms(time, tz = "EST")) %>%
     # Sort the data frame by time (ascending)
