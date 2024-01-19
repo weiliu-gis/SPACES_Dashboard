@@ -1,3 +1,3 @@
-# SPACES_Dashboard
+# SPACES Dashboard
 
 Global Positioning System (GPS) based mobility data has increasingly been utilized by researchers from psychological domain in combination with Ecological Momentary Assessments (EMAs) to elucidate individuals’ affects and behaviors in environmental contexts on a daily basis. However, there has not been a user-friendly tool for visualization that integrates data of individual surveys with GPS traces. To fill this gap, we develop an interactive dashboard which enables psychological researchers to observe the spatiotemporal patterns of individual participants’ emotions and behaviors cast in geographic contexts.
